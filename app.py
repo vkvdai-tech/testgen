@@ -3,6 +3,7 @@ import time
 import base64
 from io import BytesIO
 from google import genai
+from google.genai import types  # <--- MAKE SURE THIS EXACT LINE IS ADDED!
 from openai import OpenAI
 from pypdf import PdfReader
 from PIL import Image
