@@ -67,111 +67,81 @@ if file_type == "Entire Textbook / Notes (PDF)":
         st.info("Extracting document content...")
         full_text = extract_pdf_text(uploaded_file)
         
-        # Slicing chunk sizes based on standard provider context balances
-        # OpenAI has a smaller output window than Gemini, chunking securely helps prevent cut-offs
-        chunk_size = 60000 if provider == "OpenAI (ChatGPT)" else 100000
+        # Slicing the book into tighter operational blocks (~15-20 pages per chunk)
+        # This gives the model a laser focus on specific details for deeper extraction
+        chunk_size = 40000 
         chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
         
-        st.success(f"Successfully processed book into {len(chunks)} consecutive operational segments.")
+        st.success(f"Successfully split material into {len(chunks)} precise reading segments.")
         
         final_output = ""
         output_area = st.empty() 
         
         for index, chunk in enumerate(chunks):
-            st.write(f"📖 Working on Segment {index+1} of {len(chunks)} using {provider}...")
+            st.write(f"📖 **Analyzing Segment {index+1} of {len(chunks)}...**")
             
-            prompt_payload = (
-                f"{MASTER_PROMPT}\n\n"
-                f"SOURCE MATERIAL SEGMENT:\n{chunk}\n\n"
-                f"Activation Command: Concept map complete. Segment {index+1} sub-topics identified. "
-                f"Beginning UPSC MCQ generation across 12 question formats. Generating questions now..."
-            )
+            # Resetting execution state for the current sub-topic chunk
+            continue_generation = True
+            loop_counter = 1
+            segment_history_prompt = f"SOURCE MATERIAL TO EXTRACT FROM:\n{chunk}\n\n"
             
-            try:
-                if provider == "Gemini (Google)":
-                    g_client = genai.Client(api_key=user_api_key)
-                    response = g_client.models.generate_content(
-                        model='gemini-3.5-flash',
-                        contents=prompt_payload,
-                    )
-                    raw_text = response.text
+            while continue_generation and loop_counter <= 4: # Allows up to 4 consecutive deep sweeps per segment
+                st.write(f"✍️ Generating batch {loop_counter} for Segment {index+1}...")
+                
+                # Command execution payload
+                if loop_counter == 1:
+                    current_prompt = segment_history_prompt + "Activation Command: Concept map complete. Extract the maximum possible questions from this segment now."
                 else:
-                    o_client = OpenAI(api_key=user_api_key)
-                    # Using gpt-4o for complex matching logic/Tier 3 questions
-                    response = o_client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[{"role": "user", "content": prompt_payload}]
-                    )
-                    raw_text = response.choices[0].message.content
-                
-                segment_questions = f"\n\n### 📚 QUESTIONS FROM SEGMENT {index+1} ({provider}) ###\n\n" + raw_text
-                final_output += segment_questions
-                output_area.markdown(final_output)
-                
-                # Moderate time delays to preserve account rate limit buckets safely
-                if index < len(chunks) - 1:
-                    delay = 5 if provider == "OpenAI (ChatGPT)" else 30
-                    st.write(f"⏳ Rest interval: pausing {delay} seconds...")
-                    time.sleep(delay)
-                    
-            except Exception as e:
-                st.error(f"Error executing request on segment {index+1}: {e}")
-                time.sleep(10)
-                continue
-        
-        st.success("🎉 Processing Loop Complete!")
-        st.download_button("📥 Download Generated Pool (.txt)", final_output, file_name="UPSC_Generated_Pool.txt")
+                    current_prompt = "CRITICAL: The concept map for this segment is NOT yet fully exhausted. Continue generating the next batch of completely new, non-repetitive UPSC questions following the exact same formats and quality criteria. Do not repeat previous questions. If there are absolutely no more hidden nuances left to extract, reply with the exact text: 'SEGMENT_EXHAUSTED'."
 
-else:
-    uploaded_images = st.file_uploader("Upload screenshots", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-    
-    if uploaded_images and st.button("🚀 Generate Questions From Images"):
-        final_img_output = ""
-        output_img_area = st.empty()
-        
-        for idx, img_file in enumerate(uploaded_images):
-            st.write(f"🖼️ Parsing Image {idx+1} using {provider}...")
-            img = Image.open(img_file)
+                try:
+                    if provider == "Gemini (Google)":
+                        g_client = genai.Client(api_key=user_api_key)
+                        # We cleanly isolate your Master Prompt rules into system_instruction config
+                        response = g_client.models.generate_content(
+                            model='gemini-2.5-pro',
+                            contents=current_prompt,
+                            config=types.GenerateContentConfig(
+                                system_instruction=MASTER_PROMPT,
+                                temperature=0.2 # Lower temperature forces higher legal & factual precision
+                            )
+                        )
+                        raw_text = response.text
+                    else:
+                        o_client = OpenAI(api_key=user_api_key)
+                        response = o_client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {"role": "system", "content": MASTER_PROMPT},
+                                {"role": "user", "content": current_prompt}
+                            ],
+                            temperature=0.2
+                        )
+                        raw_text = response.choices[0].message.content
+                    
+                    # Check if the model has naturally extracted everything out of this text block
+                    if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 100:
+                        st.write(f"✨ Segment {index+1} completely exhausted.")
+                        continue_generation = False
+                    else:
+                        batch_header = f"\n\n### 📚 SEGMENT {index+1} | BATCH {loop_counter} ({provider}) ###\n\n"
+                        final_output += batch_header + raw_text
+                        output_area.markdown(final_output)
+                        
+                        loop_counter += 1
+                        
+                        # Brief safety delay between consecutive API calls
+                        time.sleep(5)
+                        
+                except Exception as e:
+                    st.error(f"Error on segment {index+1}, batch {loop_counter}: {e}")
+                    time.sleep(10)
+                    break
             
-            try:
-                if provider == "Gemini (Google)":
-                    g_client = genai.Client(api_key=user_api_key)
-                    contents_payload = [
-                        f"{MASTER_PROMPT}\n\nExtract and map all conceptual points out of this image framework.",
-                        img
-                    ]
-                    response = g_client.models.generate_content(
-                        model='gemini-1.5-pro',
-                        contents=contents_payload,
-                    )
-                    raw_text = response.text
-                else:
-                    o_client = OpenAI(api_key=user_api_key)
-                    base64_image = encode_image_to_base64(img)
-                    
-                    response = o_client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": f"{MASTER_PROMPT}\n\nExtract and map all conceptual points out of this image framework."},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                                ]
-                            }
-                        ]
-                    )
-                    raw_text = response.choices[0].message.content
-                
-                img_questions = f"\n\n### 🖼️ QUESTIONS FROM SCREENSHOT {idx+1} ###\n\n" + raw_text
-                final_img_output += img_questions
-                output_img_area.markdown(final_img_output)
-                
-                if idx < len(uploaded_images) - 1:
-                    time.sleep(5)
-                    
-            except Exception as e:
-                st.error(f"Error processing image {idx+1}: {e}")
-                
-        st.success("🎉 Image Queue Complete!")
-        st.download_button("📥 Download Image Questions (.txt)", final_img_output, file_name="UPSC_Screenshot_Questions.txt")
+            # Rate limit guard for free tiers between major segment switches
+            if index < len(chunks) - 1:
+                st.write("⏳ Resting 25 seconds before moving to the next segment...")
+                time.sleep(25)
+        
+        st.success("🎉 Comprehensive Extraction Complete!")
+        st.download_button("📥 Download All Generated Questions (.txt)", final_output, file_name="UPSC_Max_Exhaustion_Pool.txt")
