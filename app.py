@@ -91,7 +91,7 @@ if file_type == "Entire Textbook / Notes (PDF)":
                 if provider == "Gemini (Google)":
                     g_client = genai.Client(api_key=user_api_key)
                     response = g_client.models.generate_content(
-                        model='gemini-1.5-pro',
+                        model='gemini-3.5-flash',
                         contents=prompt_payload,
                     )
                     raw_text = response.text
