@@ -1,14 +1,13 @@
 import streamlit as st
 import time
 import sqlite3
-import threading
 from google import genai
 from google.genai import types
 from openai import OpenAI
 from pypdf import PdfReader
 
 # ==============================================================================
-# 1. DATABASE LAYER (Lightweight Operational Cache)
+# 1. DATABASE LAYER 
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -82,66 +81,40 @@ Leave exactly one blank line between questions. If the text has no new concepts 
 """
 
 # ==============================================================================
-# 4. BULK ENGINE PIPELINE (With Your 12 Full Formats)
+# 4. EXPLICIT GENERATION PIPELINE (Runs Inline with Error Catching)
 # ==============================================================================
-def bulk_generation_worker(book_id, chunks, provider, api_key):
+def process_book_synchronously(book_id, chunks, provider, api_key):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("UPDATE books SET status = 'processing' WHERE id = ?", (book_id,))
-    conn.commit()
-
-    # Integrated all 12 of your requested high-yield formats cleanly here:
+    
     FORMAT_ROTATION = {
-        1: (
-            "1. Multi-Statement Classic (Evaluate statements I, II, III -> Choose: 1 and 2 only, etc.) "
-            "2. Countable Multi-Statement (Trend: 'How many statements are correct? Only one, Only two, All three, None') "
-            "3. Assertion-Reason (Statement I & Statement II causal logic evaluation)."
-        ),
-        2: (
-            "4. Match the Following 2-Column Classic "
-            "5. Match the Following 3-Column Matrix (Column A [Term], Column B [Provision], Column C [Article/Year]) "
-            "6. Chronological Ordering (Arrange historical events, acts, or committee formations in sequence)."
-        ),
-        3: (
-            "7. Scenario-Based / Situational Case Study (Practical administrative tradeoffs or ethical choices based on text principles) "
-            "8. Definitional / Pure Conceptual Isolation (Testing exact operational boundary of a term) "
-            "9. Geographical / Map-Linked Context (If locations, rivers, boundaries, or national parks are mentioned)."
-        ),
-        4: (
-            "10. 2026 Evidence-Inference Matrix (3 structural facts given as Roman numerals, 2 logical deductions given as numbers; evaluate validity) "
-            "11. Passage-Based Comprehension MCQ (Read a micro-extract from text and find the core implication) "
-            "12. Direct Fact Elimination / 'Which of the following is NOT correct' format."
-        )
+        1: "1. Multi-Statement Classic AND 2. Countable Multi-Statement AND 3. Assertion-Reason.",
+        2: "4. Match the Following 2-Column AND 5. Match the Following 3-Column Matrix.",
+        3: "7. Scenario-Based / Situational Case Study AND 8. Definitional / Pure Conceptual Isolation.",
+        4: "10. 2026 Evidence-Inference Matrix AND 12. Direct Fact Elimination."
     }
 
+    total_chunks = len(chunks)
+    progress_bar = st.progress(0.0)
+    
     for index, chunk in enumerate(chunks):
         loop_counter = 1
-        continue_generation = True
         segment_history = []
         
-        while continue_generation and loop_counter <= 4:
+        st.write(f"📖 Processing Chunk {index+1} of {total_chunks}...")
+        
+        while loop_counter <= 3:
             target_format = FORMAT_ROTATION.get(loop_counter, "Standard 4-option complex UPSC MCQ.")
             
             current_prompt = (
                 f"SOURCE MATERIAL TEXT SECTOR:\n{chunk}\n\n"
                 f"MANDATORY PATTERN RULE: Generate strict 4-option multiple choice questions using exclusively these target formats: {target_format}\n"
                 f"Ensure questions are non-repetitive. History to avoid:\n" + "\n---\n".join(segment_history) + "\n\n"
-                f"Extract now. If exhausted, reply with exactly: 'SEGMENT_EXHAUSTED'."
+                f"Extract now."
             )
             
             try:
-                if provider == "Gemini (Google)":
-                    g_client = genai.Client(api_key=api_key)
-                    response = g_client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=current_prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=MASTER_PROMPT,
-                            temperature=0.2
-                        )
-                    )
-                    raw_text = response.text
-                else:
+                if provider == "OpenAI (ChatGPT)":
                     o_client = OpenAI(api_key=api_key)
                     response = o_client.chat.completions.create(
                         model="gpt-4o-mini",
@@ -152,9 +125,20 @@ def bulk_generation_worker(book_id, chunks, provider, api_key):
                         temperature=0.2
                     )
                     raw_text = response.choices[0].message.content
+                else:
+                    g_client = genai.Client(api_key=api_key)
+                    response = g_client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=current_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=MASTER_PROMPT,
+                            temperature=0.2
+                        )
+                    )
+                    raw_text = response.text
 
-                if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 100:
-                    continue_generation = False
+                if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 50:
+                    break
                 else:
                     segment_history.append(raw_text)
                     cursor.execute("INSERT INTO questions (book_id, content) VALUES (?, ?)", (book_id, raw_text))
@@ -163,18 +147,20 @@ def bulk_generation_worker(book_id, chunks, provider, api_key):
                     time.sleep(1)
 
             except Exception as e:
+                st.error(f"❌ API Engine Error: {str(e)}")
+                loop_counter = 99
                 break
         
         cursor.execute("UPDATE books SET processed_segments = ? WHERE id = ?", (index + 1, book_id))
         conn.commit()
-        time.sleep(2)
+        progress_bar.progress((index + 1) / total_chunks)
 
     cursor.execute("UPDATE books SET status = 'completed' WHERE id = ?", (book_id,))
     conn.commit()
     conn.close()
 
 # ==============================================================================
-# 5. USER FLOW (UPLOAD -> LIVE VIEW -> DOWNLOAD -> RESET)
+# 5. USER INTERFACE
 # ==============================================================================
 def extract_pdf_text(uploaded_pdf):
     reader = PdfReader(uploaded_pdf)
@@ -183,7 +169,6 @@ def extract_pdf_text(uploaded_pdf):
         text += page.extract_text() + "\n"
     return text
 
-st.subheader("📚 Ingest & Process Topic")
 uploaded_file = st.file_uploader("Upload Topic / Chapter PDF", type=["pdf"])
 
 if uploaded_file:
@@ -195,69 +180,54 @@ if uploaded_file:
 
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            st.info("Reading text layers...")
             full_text = extract_pdf_text(uploaded_file)
             
             chunk_size = 35000
             chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
-            total_chunks = len(chunks)
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO books (filename, total_segments, status) VALUES (?, ?, 'pending')", (uploaded_file.name, total_chunks))
+            cursor.execute("INSERT INTO books (filename, total_segments, status) VALUES (?, ?, 'pending')", (uploaded_file.name, len(chunks)))
             book_id = cursor.lastrowid
             conn.commit()
             conn.close()
             
-            thread = threading.Thread(target=bulk_generation_worker, args=(book_id, chunks, provider, user_api_key))
-            thread.start()
-            st.success("⚡ Engine running in background!")
+            with st.spinner("Crunching documents and pulling AI layers... Please do not close this window."):
+                process_book_synchronously(book_id, chunks, provider, user_api_key)
+            st.success("Generation completed successfully!")
             st.rerun()
     else:
         book_id, processed, total, status = book_record
         st.write("---")
         
-        # Auto refresh component
-        @st.fragment(run_every=4)
-        def show_live_status(b_id, tot, f_name, current_status):
-            conn_live = sqlite3.connect(DB_FILE)
-            cur_live = conn_live.cursor()
-            cur_live.execute("SELECT processed_segments, status FROM books WHERE id = ?", (b_id,))
-            db_metrics = cur_live.fetchone()
-            proc = db_metrics[0] if db_metrics else processed
-            stat = db_metrics[1] if db_metrics else current_status
-            
-            cur_live.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id ASC", (b_id,))
-            raw_rows = cur_live.fetchall()
-            conn_live.close()
-            
-            st.metric(
-                label=f"📖 Current Topic: {f_name}", 
-                value=f"Status: {stat.upper()}", 
-                delta=f"{proc} / {tot} Segments Read"
-            )
-            
-            compiled_questions = "\n\n".join([row[0] for row in raw_rows]) if raw_rows else ""
-            full_output_bank = f"=== POOL: {f_name} ===\n\n{compiled_questions}"
-            
-            st.write("---")
-            st.download_button(
-                label="📥 Download Clean UPSC Bank (.txt)",
-                data=full_output_bank,
-                file_name=f"UPSC_{f_name.replace('.pdf', '')}.txt",
-                mime="text/plain",
-                disabled=(len(raw_rows) == 0)
-            )
+        conn_live = sqlite3.connect(DB_FILE)
+        cur_live = conn_live.cursor()
+        cur_live.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id ASC", (book_id,))
+        raw_rows = cur_live.fetchall()
+        conn_live.close()
         
-        show_live_status(book_id, total, uploaded_file.name, status)
+        st.write(f"📖 **Topic:** {uploaded_file.name} | Status: **{status.upper()}**")
+        st.write(f"Total entries loaded in DB: **{len(raw_rows)}**")
+        
+        compiled_questions = "\n\n".join([row[0] for row in raw_rows]) if raw_rows else ""
+        full_output_bank = f"=== UPSC EXAM POOL: {uploaded_file.name} ===\n\n{compiled_questions}"
+        
+        # Download button is fully functional now
+        st.download_button(
+            label="📥 Download Clean UPSC Bank (.txt)",
+            data=full_output_bank,
+            file_name=f"UPSC_{uploaded_file.name.replace('.pdf', '')}.txt",
+            mime="text/plain",
+            disabled=(len(raw_rows) == 0)
+        )
             
         st.write("---")
-        if st.button("🔄 Reset Engine (Clear Current and Upload New Topic)"):
+        if st.button("🔄 Reset Engine for New Topic"):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM books")
             cursor.execute("DELETE FROM questions")
             conn.commit()
             conn.close()
-            st.success("Engine reset! Go ahead and drop your next topic file.")
+            st.success("Engine reset ready.")
             st.rerun()
