@@ -9,7 +9,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. CACHE LAYER ARCHITECTURE
+# 1. DATABASE CACHE ARCHITECTURE
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -38,21 +38,22 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. APPLICATION WORKSPACE CONFIGURATION
+# 2. WORKSPACE MANAGEMENT CONFIGURATION
 # ==============================================================================
-st.set_page_config(page_title="UPSC Master Engine", layout="wide")
+st.set_page_config(page_title="UPSC 12-Format Master Factory", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE TO YOUR TARGET KEY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR SECURITY!
 
 with st.sidebar:
     st.header("🔐 Access Setup")
     user_pass = st.text_input("Enter App Access Password", type="password")
     provider = st.selectbox("Select AI Provider", ["OpenAI (ChatGPT)", "Gemini (Google)", "Anthropic (Claude)"])
     
-    anthropic_model = None
+    anthropic_model_choice = None
     if provider == "Anthropic (Claude)":
-        anthropic_model = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
+        # Updated selection to accurately display your specific engine versions
+        anthropic_model_choice = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
         
     user_api_key = st.text_input(f"Enter {provider} API Key", type="password")
     
@@ -65,61 +66,66 @@ if not user_api_key:
     st.stop()
 
 # ==============================================================================
-# 3. HIGH-DIFFICULTY BLUEPRINT SPECIFICATION
+# 3. COMPREHENSIVE UPSC 12-FORMAT SPECIFICATION PROMPT
 # ==============================================================================
 MASTER_PROMPT = """
-You are a Senior UPSC CSE Paper Setter. Your absolute mandate is to construct an exhaustive test pool matching this difficulty distribution:
-- 60% BRUTAL BOUNCERS (Very Hard): 3rd-order conceptual reasoning or obscure structural exceptions.
-- 30% MEDIUM: Conceptual application questions with high-yield distractors.
-- 10% EASY: Core standard baseline validations.
+You are a Senior UPSC Civil Services Examination Paper Setter updated through the latest 2026 analytical trends. 
+Your absolute mandate is to construct an exhaustive test pool from the provided text matching this exact difficulty distribution:
+- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, complex exceptions, or practical functional deadlocks.
+- 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
+- 10% EASY: Core standard factual baseline validations.
 
-CRITICAL INSTRUCTIONS:
-1. Output strict 4-option MCQs labeled (a), (b), (c), and (d). True/False formats are strictly FORBIDDEN.
-2. Build distractors using half-truths or context swaps that contain subtle, completely fatal logical flaws.
+CRITICAL FORMAT-MIXING DIRECTIONS:
+You must review the source text and generate questions using a diverse mix of the following 12 core formats. Do NOT default to just one style. Mix them up cleanly.
 
-Template Output Structure:
+- FORMAT 1 (Direct/Standalone): One stem; one clear correct answer. Use testable synonym traps for wrong choices. (Includes 1A Positive, 1B Negative NOT/EXCEPT, 1C Definitional, 1D Category Sets).
+- FORMAT 2 (Multi-Statement): 'Consider the following statements: 1... 2... 3...'. Sub-variants: 2A (Which is correct combo options), 2B (Which is incorrect), 2C (How many statements are correct - prefer 'Only one' or 'Only two' as answers). At least one statement must be a near-truth trap. Never make all statements correct or all incorrect.
+- FORMAT 3 (Assertion-Reason): 'Statement-I: [Factual claim]. Statement-II: [Causal explanation why I is true]'. Options: (a) Both correct and II is correct explanation, (b) Both correct but II is NOT correct explanation, (c) I correct II incorrect, (d) I incorrect II correct. Do not use 'since' or 'because' within statements.
+- FORMAT 4 (Two-Column Match): Match List-I with List-II using standard option combinations (A-1, B-2...).
+- FORMAT 5 (Three-Column Match Matrix): Match List-I, List-II, and List-III using a combination grid option (e.g., A-1-I, B-2-II...). High Priority.
+- FORMAT 6 (Chronological Order): Sequence 4 historical events, acts, or procedural legislative steps (e.g., 1 -> 3 -> 2 -> 4).
+- FORMAT 7 (Applied / Current Affairs): Anchor stem in named policy/judgment/scheme context. Test the static underlying concept mechanics.
+- FORMAT 8 (Scenario-Based Situational Judgment): Place an elaborate legal dilemma or constitutional friction in the stem. Ask which outcome/action is legally valid. Root in legal correctness, not general ethics.
+- FORMAT 9 (Spatial/Map Awareness): Text-based tracking of geographical boundaries, locations, regional river paths, or territorial jurisdictions.
+- FORMAT 10 (Negative Marking Trap Logic): Intentionally design option (b) as a correct concept applied to the wrong context, and option (d) as true in general but wrong in this specific case.
+- FORMAT 11 (Passage-Based Inference): Provide a real 3-8 line textual document excerpt. Ask which inferences (1, 2, 3) follow using standard choice combinations.
+- FORMAT 12 (Analytical Probability): Evaluate significance or likelihood using 'MOST LIKELY consequence', 'LEAST LIKELY reason', or 'GREATEST IMPACT'.
+
+OUTPUT TEMPLATE (Repeat for each question generated):
 Question: [Insert question statement here]
 (a) [Option A]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
-Answer: [Correct letter only, e.g., (b)]
-Explanation: [Concise 3-4 sentence analytical breakdown explaining option validity and logical trap mechanics]
-Topic: [Syllabus micro-topic tag]
+Answer: [Correct letter only, e.g., (c)]
+Explanation: [Concise 3-4 sentence analytical breakdown explicitly highlighting the logical trap designed to break pattern-matching habits]
+Topic: [Specific syllabus micro-topic tag]
 
-Leave exactly one blank line between questions. No conversational padding or intro notes allowed.
+Leave exactly one blank line between questions. No conversational chatter or intro notes allowed.
 """
 
 # ==============================================================================
-# 4. TOKEN-OPTIMIZED GENERATION ENGINE
+# 4. CHUNK-OPTIMIZED GENERATION ENGINE (Handles Custom Claude Models Perfectly)
 # ==============================================================================
-def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_choice=None):
+def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
     total_chunks = len(chunks)
     progress_bar = st.progress(0.0)
     
     BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions according to the requested format instruction."
 
-    # Compressed index dictionary to minimize input token processing limits
-    FORMAT_RULES = {
-        1: "Format: ASSERTION-REASON causal logic. Structure: 'Statement-I: [Fact] Statement-II: [Explanation] Both true and II correct explanation (a), both true but II not correct explanation (b), I true II false (c), I false II true (d)'. No 'since' or 'because' in statements.",
-        2: "Format: MULTI-STATEMENT COUNTABLE. Structure: 'Consider statements: 1... 2... 3... How many statements are correct? (a) Only one (b) Only two (c) All three (d) None'. Avoid 'All three' as correct answer.",
-        3: "Format: THREE-COLUMN MATCH MATRIX. Structure: 'Match Columns: Column A | Column B | Column C. How many pairs are correctly matched? (a) Only one pair (b) Only two pairs (c) All three pairs (d) None of the pairs'.",
-        4: "Format: ADMINISTRATIVE SCENARIO / SITUATIONAL JUDGMENT. Structure: Describe an intricate governance deadlock testing functional exceptions or legal boundary execution. Question: 'In this context, which action is constitutionally valid?'",
-        5: "Format: 2026 EVIDENCE-INFERENCE MATRIX. Structure: Present 3 facts (I, II, III) and 2 logical inferences (1, 2). Question: 'Which inferences logically follow? (a) 1 only (b) 2 only (c) Both 1 and 2 (d) Neither 1 nor 2'.",
-        6: "Format: CHRONOLOGICAL SEQUENCE. Structure: Present 4 events/acts/procedural steps. Question: 'What is the correct chronological sequence? (a) 1->2->3->4...'.",
-        7: "Format: APPLIED CURRENT AFFAIRS. Structure: Anchor stem in named policy/judgment. Test static underlying concept mechanics. No vague 'recently in news' lines.",
-        8: "Format: TWO-COLUMN MATCH CLASSIC. Structure: Match List-I with List-II. 4 items per list. Use option grid combinations. 1 item must be the distinguishing factor.",
-        9: "Format: PURE CONCEPTUAL ISOLATION. Structure: Question: 'Which statement best captures the exact operational legal boundary of [Concept Name]?'",
-        10: "Format: NEGATIVE MARKING TRAP. Structure: (a) Correct concept/context, (b) Correct concept/wrong context, (c) Related concept, (d) Partially correct but wrong in this specific case.",
-        11: "Format: PASSAGE-BASED COMPREHENSION. Structure: Provide real 3-8 line dense textual excerpt. Ask which inferences (1, 2, 3) follow using standard combinatorial choice patterns.",
-        12: "Format: ANALYTICAL PROBABILITY. Structure: Question stem must evaluate relative weight or impact using 'MOST LIKELY consequence', 'LEAST LIKELY reason', or 'GREATEST IMPACT'."
+    # Split the 12 formats into concise, hyper-focused instructions to optimize token processing
+    BATCHED_FORMATS = {
+        1: "Task: Generate a set of 3-4 ultra-hard questions dynamically mixing FORMAT 1 (Direct), FORMAT 2 (Multi-Statement Correct/Incorrect/Countable), FORMAT 3 (Assertion-Reason), and FORMAT 4 (Two-Column Match). Ensure 60% are Very Hard bouncers.",
+        2: "Task: Generate a set of 3-4 ultra-hard questions dynamically mixing FORMAT 5 (Three-Column Matrix Match), FORMAT 6 (Chronological Sequence), FORMAT 7 (Applied Current Affairs), and FORMAT 8 (Scenario-Based Situational Governance).",
+        3: "Task: Generate a set of 3-4 ultra-hard questions dynamically mixing FORMAT 9 (Spatial/Map Awareness), FORMAT 10 (Negative Marking Trap Loops), FORMAT 11 (Passage-Based Inference Excerpts), and FORMAT 12 (Analytical Probability Outcomes)."
     }
 
     for index, chunk_text in enumerate(chunks):
-        chunk_context = f"THEME: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"SOURCE CONTENT:\n{chunk_text}"
+        chunk_context = f"CORE UPSC SYLLABUS SUBJECT: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"SOURCE COMPREHENSIVE CONTEXT:\n{chunk_text}"
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
-        for format_id in range(1, 13):
+        for batch_id in range(1, 4):
+            # Fetch continuous history to eliminate conceptual replication
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("SELECT content FROM questions WHERE book_id = ?", (book_id,))
@@ -127,13 +133,14 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             conn.close()
             compiled_history = "\n---\n".join([row[0] for row in global_history]) if global_history else "None"
 
-            target_rule = FORMAT_RULES.get(format_id)
+            target_batch_rule = BATCHED_FORMATS.get(batch_id)
             
             current_prompt = (
                 f"{MASTER_PROMPT}\n\n"
                 f"{chunk_context}\n\n"
-                f"TASK MAPPING REQUIREMENT:\n{target_rule}\n\n"
-                f"ANTI-REPETITION LOG (AVOID THESE CONCEPTS):\n{compiled_history[:10000]}\n\n"
+                f"CURRENT EXECUTION REQUIREMENT FOR THIS BATCH:\n{target_batch_rule}\n\n"
+                f"ANTI-REPETITION CONSTRAINT MANDATE (DO NOT DUPLICATE CONCEPTS OR CLAUSES ALREADY COVERED HERE):\n"
+                f"{compiled_history[:12000]}\n\n"
                 f"Output your questions directly now."
             )
             
@@ -143,7 +150,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     response = o_client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
-                        temperature=0.3
+                        temperature=0.35
                     )
                     raw_text = response.choices[0].message.content
                 elif provider == "Gemini (Google)":
@@ -151,17 +158,18 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     response = g_client.models.generate_content(
                         model='gemini-2.5-flash',
                         contents=current_prompt,
-                        config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.3)
+                        config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.35)
                     )
                     raw_text = response.text
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key)
+                    # Correct parameters for Anthropic: Sends custom validated endpoint handles directly
                     response = a_client.messages.create(
-                        model=anthropic_model_choice,
+                        model=anthropic_model_string,
                         max_tokens=4000,
                         system=BASE_SYSTEM,
                         messages=[{"role": "user", "content": current_prompt}],
-                        temperature=0.3
+                        temperature=0.35
                     )
                     raw_text = response.content[0].text
 
@@ -174,7 +182,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     time.sleep(1)
 
             except Exception as e:
-                st.error(f"❌ Execution failure at layout structure iteration {format_id}: {str(e)}")
+                st.error(f"❌ Execution Failure at Format Batch {batch_id}: {str(e)}")
                 break
         
         conn = sqlite3.connect(DB_FILE)
@@ -191,7 +199,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     conn.close()
 
 # ==============================================================================
-# 5. WORKSPACE FRAMEWORK
+# 5. USER INTERFACE LAYER
 # ==============================================================================
 def extract_robust_pdf_text(uploaded_pdf):
     text = ""
@@ -215,13 +223,13 @@ if uploaded_file:
 
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            with st.spinner("Parsing layout structure..."):
+            with st.spinner("Parsing text matrix layers..."):
                 full_text = extract_robust_pdf_text(uploaded_file)
             
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                st.info(f"Parsed {len(full_text)} context characters. Setting memory channels...")
+                st.info(f"Parsed {len(full_text)} characters. Setting background architecture...")
                 chunk_size = 35000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
             
@@ -233,8 +241,7 @@ if uploaded_file:
             conn.close()
             
             with st.spinner("Compiling structural variations... Please maintain active browser focus."):
-                chosen_claude = anthropic_model if provider == "Anthropic (Claude)" else None
-                process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, chosen_claude)
+                process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, anthropic_model_choice)
             st.success("Compilation loops finished successfully!")
             st.rerun()
     else:
@@ -248,7 +255,7 @@ if uploaded_file:
         conn_live.close()
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
-        st.write(f"Total entries loaded in DB: **{len(raw_rows)}** items across 12 explicit layouts.")
+        st.write(f"Total entries loaded in DB: **{len(raw_rows)}** item batches across all 12 explicit layouts.")
         
         compiled_questions = "\n\n".join([row[0] for row in raw_rows]) if raw_rows else ""
         full_output_bank = f"=== UPSC 12-FORMAT EXHAUSTIVE POOL FOR TOPIC: {clean_topic_name} ===\n\n{compiled_questions}"
