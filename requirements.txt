@@ -1,6 +1,5 @@
 streamlit
+pypdf
+pdfplumber
 google-genai
 openai
-pypdf
-pillow
-pip install pdfplumber
