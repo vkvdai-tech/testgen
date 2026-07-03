@@ -591,43 +591,35 @@ def background_pdf_worker(book_id, chunks, provider, api_key):
     cursor.execute("UPDATE books SET status = 'processing' WHERE id = ?", (book_id,))
     conn.commit()
 
-    # Define strict format buckets to rotate through across batches to guarantee 12 different models
     FORMAT_ROTATION = {
-        1: "Format 2C: 'How Many Statements Correct' (Non-eliminable precision test) AND Format 3: Assertion-Reason (Causal logic gaps).",
-        2: "Format 5: Three-Column Match The Following (3-way structural relationships) AND Format 8: Scenario-Based / Situational Judgment (Governance dilemmas).",
-        3: "Format 2D: 'How Many Pairs Are Correctly Matched' AND Format 7: Applied / Current Affairs Linked Questions.",
-        4: "Format 4: Match The Following (Two-Column) AND Format 11: Passage-Based Questions AND Format 12: 'Which is least/most likely' Analytical Questions."
+        1: "Format 2C: 'How Many Statements Correct' AND Format 3: Assertion-Reason.",
+        2: "Format 5: Three-Column Match AND Format 8: Scenario-Based / Situational Judgment.",
+        3: "Format 2D: 'How Many Pairs Matched' AND Format 7: Applied / Current Affairs.",
+        4: "Format 4: Match (Two-Column) AND Format 11: Passage-Based Questions."
     }
 
     for index, chunk in enumerate(chunks):
         loop_counter = 1
         continue_generation = True
-        
-        # Keep track of what this specific worker session has already generated for this segment
         generated_history_this_segment = []
         
         while continue_generation and loop_counter <= 4:
-            target_formats = FORMAT_ROTATION.get(loop_counter, "Any remaining untried UPSC formats from the catalogue.")
-            
-            # Base prompt anchoring the AI explicitly to this specific source text block
+            target_formats = FORMAT_ROTATION.get(loop_counter, "Any remaining untried UPSC formats.")
             base_instruction = (
-                f"SOURCE MATERIAL TO EXTRACT FROM (Strictly use this specific text flavor/explanation):\n{chunk}\n\n"
-                f"TARGET FOCUS FOR THIS BATCH: You must exhaustively generate questions targeting ONLY these specific models: {target_formats}\n"
+                f"SOURCE MATERIAL TO EXTRACT FROM:\n{chunk}\n\n"
+                f"TARGET FOCUS FOR THIS BATCH: You must generate questions targeting ONLY these specific models: {target_formats}\n"
             )
 
             if loop_counter == 1:
                 current_prompt = base_instruction + "\nActivation Command: Concept map complete. Extract the maximum number of unique questions for these specific models now."
             else:
-                # Format previous outputs cleanly to inject as a negative constraint history
                 history_text = "\n---\n".join(generated_history_this_segment)
                 current_prompt = (
                     f"{base_instruction}\n"
-                    f"CRITICAL RULES FOR BATCH {loop_counter}:\n"
-                    f"1. The concept map for this segment is NOT yet fully exhausted. You must discover deeper details.\n"
-                    f"2. You are STRICTLY FORBIDDEN from repeating the concepts, options, or phrasing of the questions you already generated in earlier batches.\n"
-                    f"3. Here is the exact history of questions you already generated for this chunk. Avoid them completely:\n"
-                    f"=== ALREADY GENERATED QUESTIONS HISTORY ===\n{history_text}\n=========================================\n\n"
-                    f"Generate a fresh batch of completely new, non-repetitive UPSC questions for the target formats now. If absolutely no new conceptual angles can be framed, reply with: 'SEGMENT_EXHAUSTED'."
+                    f"CRITICAL RULES:\n"
+                    f"1. Do NOT repeat concepts, options, or phrasing from earlier batches.\n"
+                    f"2. Avoid this history completely:\n{history_text}\n"
+                    f"Generate a fresh batch now. If exhausted, reply with: 'SEGMENT_EXHAUSTED'."
                 )
             
             try:
@@ -638,7 +630,7 @@ def background_pdf_worker(book_id, chunks, provider, api_key):
                         contents=current_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=MASTER_PROMPT,
-                            temperature=0.3 # Slightly raised to promote diverse question pattern structures
+                            temperature=0.3
                         )
                     )
                     raw_text = response.text
@@ -657,22 +649,25 @@ def background_pdf_worker(book_id, chunks, provider, api_key):
                 if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 100:
                     continue_generation = False
                 else:
-                    # Append to tracking array so the next loop round knows what to avoid
                     generated_history_this_segment.append(raw_text)
-                    
-                    # Commit direct transaction to SQLite storage file
                     cursor.execute("""
                         INSERT INTO questions (book_id, segment_index, batch_index, provider, content)
                         VALUES (?, ?, ?, ?, ?)
                     """, (book_id, index + 1, loop_counter, provider, raw_text))
                     conn.commit()
-                    
                     loop_counter += 1
                     time.sleep(2)
 
             except Exception as e:
-                print(f"Worker iteration loop error: {e}")
-                time.sleep(12)
+                # CRITICAL CHANGE: Write the real error message directly into your review bank 
+                # so you can see exactly what broke inside the app tab!
+                error_msg = f"⚠️ SYSTEM CRASH ERROR ON BATCH {loop_counter}: {str(e)}"
+                cursor.execute("""
+                    INSERT INTO questions (book_id, segment_index, batch_index, provider, content, status)
+                    VALUES (?, ?, ?, ?, ?, 'pending')
+                """, (book_id, index + 1, loop_counter, provider, error_msg))
+                conn.commit()
+                continue_generation = False
                 break
         
         cursor.execute("UPDATE books SET processed_segments = ? WHERE id = ?", (index + 1, book_id))
