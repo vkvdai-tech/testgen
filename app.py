@@ -42,7 +42,7 @@ init_db()
 st.set_page_config(page_title="UPSC Elite MCQ Factory", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "your_secret_password_here"  # CHANGE THIS PASSWORD FOR SECURITY!
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR SECURITY!
 
 with st.sidebar:
     st.header("🔐 Access Setup")
