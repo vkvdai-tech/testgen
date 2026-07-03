@@ -3,3 +3,4 @@ pypdf
 pdfplumber
 google-genai
 openai
+pip install anthropic
