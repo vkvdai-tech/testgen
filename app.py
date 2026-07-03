@@ -119,7 +119,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             cursor.execute("SELECT content FROM questions WHERE book_id = ?", (book_id,))
         global_history = cursor.fetchall()
         compiled_history_text = "\n---\n".join([row[0] for row in global_history]) if global_history else "None"
-
+)
         while loop_counter <= 4:
             target_format = FORMAT_ROTATION.get(loop_counter, "Standard 4-option complex UPSC MCQ.")
              current_prompt = (
