@@ -4,7 +4,7 @@ import sqlite3
 from google import genai
 from google.genai import types
 from openai import OpenAI
-from pypdf import PdfReader
+import pdfplumber  # Switched for superior hybrid image/text layout extraction
 
 # ==============================================================================
 # 1. DATABASE LAYER 
@@ -58,7 +58,7 @@ if not user_api_key:
     st.stop()
 
 # ==============================================================================
-# 3. PURE 4-OPTION UPSC MASTER PROMPT
+# 3. PURE 4-OPTION UPSC MASTER PROMPT (With 2026 Shift Alignment)
 # ==============================================================================
 MASTER_PROMPT = """
 You are an expert UPSC Civil Services Examination Paper Setter updated through the latest 2026 trends. Extract the MAXIMUM possible number of unique, high-difficulty, conceptual multiple-choice questions from the provided text block.
@@ -81,7 +81,7 @@ Leave exactly one blank line between questions. If the text has no new concepts 
 """
 
 # ==============================================================================
-# 4. EXPLICIT GENERATION PIPELINE (Runs Inline with Error Catching)
+# 4. EXPLICIT GENERATION PIPELINE 
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, provider, api_key):
     conn = sqlite3.connect(DB_FILE)
@@ -101,15 +101,15 @@ def process_book_synchronously(book_id, chunks, provider, api_key):
         loop_counter = 1
         segment_history = []
         
-        st.write(f"📖 Processing Chunk {index+1} of {total_chunks}...")
+        st.write(f"📖 Processing Data Block {index+1} of {total_chunks}...")
         
+        # Will dynamically evaluate up to 3 passes to gather all details
         while loop_counter <= 3:
             target_format = FORMAT_ROTATION.get(loop_counter, "Standard 4-option complex UPSC MCQ.")
-            
             current_prompt = (
                 f"SOURCE MATERIAL TEXT SECTOR:\n{chunk}\n\n"
                 f"MANDATORY PATTERN RULE: Generate strict 4-option multiple choice questions using exclusively these target formats: {target_format}\n"
-                f"Ensure questions are non-repetitive. History to avoid:\n" + "\n---\n".join(segment_history) + "\n\n"
+                f"Ensure absolute structural diversity. History to avoid duplication:\n" + "\n---\n".join(segment_history) + "\n\n"
                 f"Extract now."
             )
             
@@ -137,7 +137,7 @@ def process_book_synchronously(book_id, chunks, provider, api_key):
                     )
                     raw_text = response.text
 
-                if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 50:
+                if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 40:
                     break
                 else:
                     segment_history.append(raw_text)
@@ -147,7 +147,7 @@ def process_book_synchronously(book_id, chunks, provider, api_key):
                     time.sleep(1)
 
             except Exception as e:
-                st.error(f"❌ API Engine Error: {str(e)}")
+                st.error(f"❌ API Processing Failure: {str(e)}")
                 loop_counter = 99
                 break
         
@@ -160,14 +160,18 @@ def process_book_synchronously(book_id, chunks, provider, api_key):
     conn.close()
 
 # ==============================================================================
-# 5. USER INTERFACE
+# 5. ADVANCED LAYOUT PARSING INTERFACE
 # ==============================================================================
-def extract_pdf_text(uploaded_pdf):
-    reader = PdfReader(uploaded_pdf)
+def extract_robust_pdf_text(uploaded_pdf):
     text = ""
-    for page in reader.pages:
-        text += page.extract_text() + "\n"
-    return text
+    # Open using pdfplumber to bypass image overlay layout breaks
+    with pdfplumber.open(uploaded_pdf) as pdf:
+        for page in pdf.pages:
+            # Tries layout extraction strategy first
+            page_text = page.extract_text(layout=False)
+            if page_text:
+                text += page_text + "\n"
+    return text.strip()
 
 uploaded_file = st.file_uploader("Upload Topic / Chapter PDF", type=["pdf"])
 
@@ -180,7 +184,14 @@ if uploaded_file:
 
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            full_text = extract_pdf_text(uploaded_file)
+            with st.spinner("Extracting layered text zones from hybrid PDF layout..."):
+                full_text = extract_robust_pdf_text(uploaded_file)
+            
+            if not full_text or len(full_text) < 15:
+                st.error("❌ EXTRACTION EXHAUSTED: The parser could not find readable text structures inside this PDF format. If this file contains purely scanned bitmap photographs, please use an OCR-pre-processed document.")
+                st.stop()
+                
+            st.info(f"Successfully processed text matrix. Captured {len(full_text)} characters. Running generation engine...")
             
             chunk_size = 35000
             chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
@@ -192,8 +203,7 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            with st.spinner("Crunching documents and pulling AI layers... Please do not close this window."):
-                process_book_synchronously(book_id, chunks, provider, user_api_key)
+            process_book_synchronously(book_id, chunks, provider, user_api_key)
             st.success("Generation completed successfully!")
             st.rerun()
     else:
@@ -212,7 +222,6 @@ if uploaded_file:
         compiled_questions = "\n\n".join([row[0] for row in raw_rows]) if raw_rows else ""
         full_output_bank = f"=== UPSC EXAM POOL: {uploaded_file.name} ===\n\n{compiled_questions}"
         
-        # Download button is fully functional now
         st.download_button(
             label="📥 Download Clean UPSC Bank (.txt)",
             data=full_output_bank,
