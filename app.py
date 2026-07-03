@@ -103,7 +103,7 @@ Leave exactly one blank line between questions. No conversational chatter or int
 """
 
 # ==============================================================================
-# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Robust Timeout Fix Configuration)
+# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Fixed For Reasoning Models)
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
     total_chunks = len(chunks)
@@ -147,44 +147,46 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             )
             
             raw_text = ""
-            for retry_attempt in range(1, 4):
-                try:
-                    if provider == "OpenAI (ChatGPT)":
-                        o_client = OpenAI(api_key=api_key)
-                        response = o_client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
-                            temperature=0.35
-                        )
-                        raw_text = response.choices[0].message.content
-                    elif provider == "Gemini (Google)":
-                        g_client = genai.Client(api_key=api_key)
-                        response = g_client.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=current_prompt,
-                            config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.35)
-                        )
-                        raw_text = response.text
-                    elif provider == "Anthropic (Claude)":
-                        # FIXED: Injected an explicit 120-second timeout limit to hold socket state open safely
-                        a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
-                        response = a_client.messages.create(
-                            model=anthropic_model_string,
-                            max_tokens=4000,
-                            system=BASE_SYSTEM,
-                            messages=[{"role": "user", "content": current_prompt}],
-                            temperature=0.35
-                        )
-                        raw_text = response.content[0].text
-                    
-                    if len(raw_text.strip()) > 50:
-                        break  
-                        
-                except Exception as api_err:
-                    if retry_attempt == 3:
-                        st.error(f"❌ Connection Dropped Permanently at Batch {batch_id}: {str(api_err)}")
-                    else:
-                        time.sleep(3)  # Adaptive delay backup frame
+            try:
+                if provider == "OpenAI (ChatGPT)":
+                    o_client = OpenAI(api_key=api_key)
+                    response = o_client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
+                        temperature=0.35
+                    )
+                    raw_text = response.choices[0].message.content
+                elif provider == "Gemini (Google)":
+                    g_client = genai.Client(api_key=api_key)
+                    response = g_client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=current_prompt,
+                        config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.35)
+                    )
+                    raw_text = response.text
+                elif provider == "Anthropic (Claude)":
+                    a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+                    # FIXED: Removed the deprecated temperature parameter entirely to unblock modern reasoning execution profiles
+                    response = a_client.messages.create(
+                        model=anthropic_model_string,
+                        max_tokens=4000,
+                        system=BASE_SYSTEM,
+                        messages=[{"role": "user", "content": current_prompt}]
+                    )
+                    raw_text = response.content[0].text
+
+            except anthropic.AuthenticationError:
+                st.error("❌ CLAUDE AUTHENTICATION ERROR: Your Anthropic API Key is invalid or incorrectly copied.")
+                break
+            except anthropic.RateLimitError:
+                st.error("❌ CLAUDE RATE LIMIT: Your Anthropic account hit a concurrency cap or temporary token pause.")
+                break
+            except anthropic.APIConnectionError as conn_err:
+                st.error(f"❌ CLAUDE NETWORK CONNECTION DROP: A network issue occurred between Streamlit and Anthropic. Details: {str(conn_err)}")
+                break
+            except Exception as general_err:
+                st.error(f"❌ GENERAL ENGINE EXCEPTION at Batch {batch_id}: {str(general_err)}")
+                break
 
             if len(raw_text.strip()) > 50 and "SEGMENT_EXHAUSTED" not in raw_text:
                 conn = sqlite3.connect(DB_FILE)
@@ -232,7 +234,6 @@ if uploaded_file:
 
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            # Auto-Rectifier: Clears stale database blocks to prevent early locks
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM books")
@@ -240,16 +241,15 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            with st.spinner("Extracting text matrix layers..."):
+            with st.spinner("Extracting text layers..."):
                 full_text = extract_robust_pdf_text(uploaded_file)
             
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                # FIXED: Lowered data chunk boundaries down to 8,000 to keep prompt loads optimized for Claude
                 chunk_size = 8000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
-                st.info(f"Parsed {len(full_text)} characters into {len(chunks)} optimized chunks. Initializing processing...")
+                st.info(f"Parsed {len(full_text)} characters into {len(chunks)} chunks.")
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
@@ -258,9 +258,8 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            with st.spinner("Compiling structural variations... Please keep this window open."):
-                process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, anthropic_model_choice)
-            st.success("Compilation loop complete!")
+            process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, anthropic_model_choice)
+            st.success("Compilation processing pass complete!")
             st.rerun()
     else:
         book_id, processed, total, status = book_record
@@ -273,7 +272,7 @@ if uploaded_file:
         conn_live.close()
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
-        st.write(f"Total entries loaded in DB: **{len(raw_rows)}** item batches across all 12 explicit layouts.")
+        st.write(f"Total entries loaded in DB: **{len(raw_rows)}** items across layout matrices.")
         
         compiled_questions = "\n\n".join([row[0] for row in raw_rows]) if raw_rows else ""
         full_output_bank = f"=== UPSC 12-FORMAT EXHAUSTIVE POOL FOR TOPIC: {clean_topic_name} ===\n\n{compiled_questions}"
@@ -294,5 +293,5 @@ if uploaded_file:
             cursor.execute("DELETE FROM questions")
             conn.commit()
             conn.close()
-            st.success("App cache cleared successfully.")
+            st.success("App workspace reset complete.")
             st.rerun()
