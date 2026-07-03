@@ -65,17 +65,11 @@ if not user_api_key:
 # 3. COMPACT & EFFECTIVE MASTER SYSTEM PROMPT (2026 Pattern Aligned)
 # ==============================================================================
 MASTER_PROMPT = """
-You are an expert UPSC Civil Services Examination Paper Setter updated through the May 2026 Prelims trends. Your task is to extract the MAXIMUM possible number of unique, high-difficulty, conceptual multiple-choice questions from the provided text block.
-
-You must strictly generate questions spanning these specific formats:
-1. Assertion-Reason (Causal Logic): Statement I followed by Statement II, evaluating if Statement II is the correct explanation of Statement I.
-2. Scenario-Based Situational Case Studies: Evaluating real-world governance, administrative logjams, or policy paradoxes based on the text principles.
-3. 2026 Evidence-Inference Matrix: Providing 3 contextual facts (Roman numerals I, II, III), followed by 2 analytical inferences, forcing the user to evaluate which inferences are logically valid.
-4. Countable Multi-Statement Classic: "How many of the statements given above are correct? (a) Only one (b) Only two (c) All three (d) None".
+You are a Senior UPSC CSE Paper Setter. Extract the MAXIMUM possible number of unique, high-difficulty MCQs from the provided text.
 
 CRITICAL RULES:
-1. Grounding: Rely ONLY on facts explicitly mentioned in the source material text. Do not look outside the text block.
-2. Formatting: Output the questions cleanly following the exact plain-text schema below. Do not output introduction words, emojis, markdown line dividers, or extra labels.
+1. Grounding: Rely ONLY on facts explicitly stated in the source text. Do not invent external scenarios or concepts.
+2. Formatting: Output the questions cleanly following the plain-text schema below. Do not output intro words, markdown lines, or emojis.
 
 Template:
 Question: [Insert question statement here]
@@ -83,12 +77,34 @@ Question: [Insert question statement here]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
-Answer: [Correct option letter only, e.g., (c)]
-Explanation: [Concise 3-4 sentence concept analysis explaining why the answer is factually correct based on the text]
-Topic: [Specific syllabus micro-topic name]
+Answer: [Correct letter only, e.g., (b)]
+Explanation: [Concise 3-4 sentence factual analysis based strictly on the text]
+Topic: [Syllabus topic name]
 
-Leave exactly one blank line between questions. If the text block has been completely exhausted of new concepts, reply with exactly: 'SEGMENT_EXHAUSTED'.
+Leave exactly one blank line between questions. If the text has no new concepts left, reply ONLY with: 'SEGMENT_EXHAUSTED'.
 """
+FORMAT_ROTATION = {
+        1: (
+            "1. Multi-Statement Classic (Evaluate statements I, II, III -> Choose: 1 and 2 only, etc.) "
+            "2. Countable Multi-Statement (2023-2026 Trend: 'How many statements are correct? Only one, Only two, All three, None') "
+            "3. Assertion-Reason (Statement I & Statement II causal logic evaluation)."
+        ),
+        2: (
+            "4. Match the Following 2-Column Classic "
+            "5. Match the Following 3-Column Matrix (2024-2026 Trend: Column A [Term], Column B [Provision], Column C [Article/Year]) "
+            "6. Chronological Ordering (Arrange historical events, acts, or committee formations in sequence)."
+        ),
+        3: (
+            "7. Scenario-Based / Situational Case Study (2026 Trend: Practical administrative tradeoffs or ethical choices based on the text principles) "
+            "8. Definitional / Pure Conceptual Isolation (Testing the exact operational boundary of a term) "
+            "9. Geographical / Map-Linked Context (If locations, rivers, boundaries, or national parks are mentioned)."
+        ),
+        4: (
+            "10. 2026 Evidence-Inference Matrix (3 structural facts given as Roman numerals, 2 logical deductions given as numbers; evaluate validity) "
+            "11. Passage-Based Comprehension MCQ (Read a micro-extract from the text and find the core implication) "
+            "12. Direct Fact Elimination / 'Which of the following is NOT correct' format."
+        )
+    }
 
 # ==============================================================================
 # 4. BACKGROUND PROCESSING PIPELINE
