@@ -60,10 +60,7 @@ if not user_api_key:
     st.info(f"Please provide your {provider} API Key to continue.")
     st.stop()
 
-# ==============================================================================
-# 3. COMPACT & EFFECTIVE MASTER SYSTEM PROMPT
-# ==============================================================================
-MASTER_PROMPT = """
+
 # ==============================================================================
 # 3. COMPACT & EFFECTIVE MASTER SYSTEM PROMPT (2026 Pattern Aligned)
 # ==============================================================================
