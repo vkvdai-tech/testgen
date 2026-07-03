@@ -1,22 +1,21 @@
 import streamlit as st
 import time
-import base64
 import sqlite3
 import threading
 from google import genai
 from google.genai import types
 from openai import OpenAI
 from pypdf import PdfReader
-from PIL import Image
 
 # ==============================================================================
-# 1. DATABASE CONFIGURATION (Self-contained SQLite Checkpoints)
+# 1. DATABASE LAYER (Persistent Log Checkpoints)
 # ==============================================================================
-DB_FILE = "upsc_platform.db"
+DB_FILE = "upsc_platform_simple.db"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    # Simplified tracking matrix
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS books (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,10 +31,7 @@ def init_db():
             book_id INTEGER,
             segment_index INTEGER,
             batch_index INTEGER,
-            provider TEXT,
-            content TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            content TEXT
         )
     """)
     conn.commit()
@@ -44,29 +40,25 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. PAGE INITIALIZATION & SECURITY
+# 2. SECURITY & PROVIDER CONFIG
 # ==============================================================================
-st.set_page_config(page_title="UPSC Question Factory v2", layout="wide")
-st.title("🎯 UPSC GS Paper I Async Question Factory")
+st.set_page_config(page_title="UPSC Fast Generator", layout="wide")
+st.title("🎯 UPSC GS Paper I Bulk Question Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD!
+ACCESS_PASSWORD = "your_secret_password_here"  # CHANGE THIS PASSWORD!
 
 with st.sidebar:
-    st.header("🔐 Access & Provider Setup")
+    st.header("🔐 Access Setup")
     user_pass = st.text_input("Enter App Access Password", type="password")
-    provider = st.selectbox("Select AI Provider", ["Gemini (Google)", "OpenAI (ChatGPT)"])
-    
-    if provider == "Gemini (Google)":
-        user_api_key = st.text_input("Enter Gemini API Key", type="password")
-    else:
-        user_api_key = st.text_input("Enter OpenAI API Key (sk-...)", type="password")
+    provider = st.selectbox("Select AI Provider", ["OpenAI (ChatGPT)", "Gemini (Google)"])
+    user_api_key = st.text_input(f"Enter {provider} API Key", type="password")
     
 if user_pass != ACCESS_PASSWORD:
     st.warning("Please enter the correct App Access Password in the sidebar to unlock.")
     st.stop()
 
 if not user_api_key:
-    st.info(f"Please provide your {provider} API Key to connect to the models.")
+    st.info(f"Please provide your {provider} API Key to continue.")
     st.stop()
 
 # ==============================================================================
@@ -585,7 +577,7 @@ A common misconception or counterintuitive fact	Format 10: Elimination-Based Tra
 # ==============================================================================
 # 4. CRASH-PROOF BACKGROUND ASYNC WORKER (Upgraded for Multi-Model Variant Forcing)
 # ==============================================================================
-def background_pdf_worker(book_id, chunks, provider, api_key):
+def bulk_generation_worker(book_id, chunks, provider, api_key):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("UPDATE books SET status = 'processing' WHERE id = ?", (book_id,))
@@ -595,31 +587,33 @@ def background_pdf_worker(book_id, chunks, provider, api_key):
         1: "Format 2C: 'How Many Statements Correct' AND Format 3: Assertion-Reason.",
         2: "Format 5: Three-Column Match AND Format 8: Scenario-Based / Situational Judgment.",
         3: "Format 2D: 'How Many Pairs Matched' AND Format 7: Applied / Current Affairs.",
-        4: "Format 4: Match (Two-Column) AND Format 11: Passage-Based Questions."
+        4: "Format 4: Match (Two-Column) AND Format 1: Direct / Standalone."
     }
 
     for index, chunk in enumerate(chunks):
         loop_counter = 1
         continue_generation = True
-        generated_history_this_segment = []
+        segment_history = []
         
         while continue_generation and loop_counter <= 4:
-            target_formats = FORMAT_ROTATION.get(loop_counter, "Any remaining untried UPSC formats.")
+            target_formats = FORMAT_ROTATION.get(loop_counter, "Any remaining untried formats.")
+            
+            # Forcing strict content bounding to prevent outside hallucination
             base_instruction = (
-                f"SOURCE MATERIAL TO EXTRACT FROM:\n{chunk}\n\n"
-                f"TARGET FOCUS FOR THIS BATCH: You must generate questions targeting ONLY these specific models: {target_formats}\n"
+                f"STRICT SOURCE TEXT BOUNDARY - GENERATE QUESTIONS ONLY FROM THIS TEXT:\n{chunk}\n\n"
+                f"TARGET FOCUS MODELS: You must target ONLY these formats: {target_formats}\n"
             )
 
             if loop_counter == 1:
-                current_prompt = base_instruction + "\nActivation Command: Concept map complete. Extract the maximum number of unique questions for these specific models now."
+                current_prompt = base_instruction + "\nActivation Command: Concept map complete. Extract the absolute maximum number of questions possible from this specific text segment now."
             else:
-                history_text = "\n---\n".join(generated_history_this_segment)
+                history_text = "\n---\n".join(segment_history)
                 current_prompt = (
                     f"{base_instruction}\n"
-                    f"CRITICAL RULES:\n"
-                    f"1. Do NOT repeat concepts, options, or phrasing from earlier batches.\n"
-                    f"2. Avoid this history completely:\n{history_text}\n"
-                    f"Generate a fresh batch now. If exhausted, reply with: 'SEGMENT_EXHAUSTED'."
+                    f"CRITICAL RULES FOR BATCH {loop_counter}:\n"
+                    f"1. Do NOT repeat or rephrase questions from earlier batches.\n"
+                    f"2. You are FORBIDDEN from generating duplicate targets. Review your previous batch text here:\n{history_text}\n"
+                    f"Generate a fresh batch of completely new questions now. If completely exhausted, reply with exactly: 'SEGMENT_EXHAUSTED'."
                 )
             
             try:
@@ -630,7 +624,7 @@ def background_pdf_worker(book_id, chunks, provider, api_key):
                         contents=current_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=MASTER_PROMPT,
-                            temperature=0.3
+                            temperature=0.2
                         )
                     )
                     raw_text = response.text
@@ -642,44 +636,40 @@ def background_pdf_worker(book_id, chunks, provider, api_key):
                             {"role": "system", "content": MASTER_PROMPT},
                             {"role": "user", "content": current_prompt}
                         ],
-                        temperature=0.3
+                        temperature=0.2
                     )
                     raw_text = response.choices[0].message.content
 
                 if "SEGMENT_EXHAUSTED" in raw_text or len(raw_text.strip()) < 100:
                     continue_generation = False
                 else:
-                    generated_history_this_segment.append(raw_text)
+                    segment_history.append(raw_text)
                     cursor.execute("""
-                        INSERT INTO questions (book_id, segment_index, batch_index, provider, content)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (book_id, index + 1, loop_counter, provider, raw_text))
+                        INSERT INTO questions (book_id, segment_index, batch_index, content)
+                        VALUES (?, ?, ?, ?)
+                    """, (book_id, index + 1, loop_counter, raw_text))
                     conn.commit()
                     loop_counter += 1
                     time.sleep(2)
 
             except Exception as e:
-                # CRITICAL CHANGE: Write the real error message directly into your review bank 
-                # so you can see exactly what broke inside the app tab!
-                error_msg = f"⚠️ SYSTEM CRASH ERROR ON BATCH {loop_counter}: {str(e)}"
-                cursor.execute("""
-                    INSERT INTO questions (book_id, segment_index, batch_index, provider, content, status)
-                    VALUES (?, ?, ?, ?, ?, 'pending')
-                """, (book_id, index + 1, loop_counter, provider, error_msg))
+                # Log any processing drops inside the text structure transparently
+                error_log = f"\n⚠️ [SYSTEM ERROR SEGMENT {index+1} BATCH {loop_counter}]: {str(e)}\n"
+                cursor.execute("INSERT INTO questions (book_id, segment_index, batch_index, content) VALUES (?, ?, ?, ?)", 
+                               (book_id, index + 1, loop_counter, error_log))
                 conn.commit()
-                continue_generation = False
                 break
         
         cursor.execute("UPDATE books SET processed_segments = ? WHERE id = ?", (index + 1, book_id))
         conn.commit()
-        time.sleep(5)
+        time.sleep(4)
 
     cursor.execute("UPDATE books SET status = 'completed' WHERE id = ?", (book_id,))
     conn.commit()
     conn.close()
 
 # ==============================================================================
-# 5. STREAMLIT FRONTEND VIEW INTERFACE
+# 5. MAIN WORKSPACE VIEW
 # ==============================================================================
 def extract_pdf_text(uploaded_pdf):
     reader = PdfReader(uploaded_pdf)
@@ -688,87 +678,73 @@ def extract_pdf_text(uploaded_pdf):
         text += page.extract_text() + "\n"
     return text
 
-tabs = st.tabs(["📤 Upload & Process Book", "👁️ Review & Download Pool"])
+# Interface Design
+st.subheader("🤖 Bulk Extraction Engine")
+uploaded_file = st.file_uploader("Upload Textbook / Notes PDF (Processes hundreds of pages flawlessly)", type=["pdf"])
 
-# --- TAB 1: FILE INGESTION ---
-with tabs[0]:
-    st.header("Upload Heavy UPSC Reference Textbooks")
-    uploaded_file = st.file_uploader("Upload your 100 to 1000 page textbook PDF", type=["pdf"])
-    
-    if uploaded_file:
-        if st.button("⚡ Trigger Core Background Processing"):
-            st.info("Reading text structure and calculating matrix slices...")
+if uploaded_file:
+    # Check current db trace status
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, processed_segments, total_segments, status FROM books WHERE filename = ?", (uploaded_file.name,))
+    book_record = cursor.fetchone()
+    conn.close()
+
+    if not book_record:
+        if st.button("🚀 Trigger Full Automated Extraction Loop"):
+            st.info("Reading complete book text structure...")
             full_text = extract_pdf_text(uploaded_file)
             
-            # Slicing the file into tight ~12-15 page chunks for meticulous coverage
-            chunk_size = 35000 
+            # Structural chunk mapping
+            chunk_size = 35000
             chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
             total_chunks = len(chunks)
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT OR REPLACE INTO books (filename, total_segments, processed_segments, status)
-                VALUES (?, ?, 0, 'pending')
-            """, (uploaded_file.name, total_chunks))
+            cursor.execute("INSERT INTO books (filename, total_segments, status) VALUES (?, ?, 'pending')", (uploaded_file.name, total_chunks))
             book_id = cursor.lastrowid
             conn.commit()
             conn.close()
             
-            # Spawn background thread to separate computation from UI loop completely
-            thread = threading.Thread(
-                target=background_pdf_worker, 
-                args=(book_id, chunks, provider, user_api_key)
-            )
+            # Fire separate computation engine instantly
+            thread = threading.Thread(target=bulk_generation_worker, args=(book_id, chunks, provider, user_api_key))
             thread.start()
-            st.success("🚀 Engine Active! The background worker has taken over processing. You can safely look at the next tab or close your laptop—your text data will process smoothly.")
-
-# --- TAB 2: LIVE REVIEW PANEL ---
-with tabs[1]:
-    st.header("Human-In-The-Loop Question Desk")
-    
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM books")
-    all_books = cursor.fetchall()
-    
-    if all_books:
-        st.subheader("📊 Ingestion Queue Performance Status")
-        for bk in all_books:
-            st.write(f"📖 **Book:** `{bk[1]}` | **Status:** `{bk[4].upper()}` | Progress: `{bk[3]} / {bk[2]}` segments completely extracted.")
-        
-        # Load single pending batch item for confirmation review
-        cursor.execute("SELECT id, content FROM questions WHERE status = 'pending' ORDER BY id ASC LIMIT 1")
-        pending_item = cursor.fetchone()
-        
-        st.write("---")
-        if pending_item:
-            current_q_id, current_content = pending_item
-            st.subheader("Awaiting Manual Verification Review:")
-            st.markdown(current_content)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Approve & Add to Test Pool", key=f"app_{current_q_id}"):
-                    cursor.execute("UPDATE questions SET status = 'approved' WHERE id = ?", (current_q_id,))
-                    conn.commit()
-                    st.rerun()
-            with col2:
-                if st.button("❌ Trash / Reject Batch", key=f"rej_{current_q_id}"):
-                    cursor.execute("UPDATE questions SET status = 'rejected' WHERE id = ?", (current_q_id,))
-                    conn.commit()
-                    st.rerun()
-        else:
-            st.info("All generated question batches have been completely reviewed or the background queues are still running.")
-
-        # Show Approved Database Downloads Panel
-        cursor.execute("SELECT content FROM questions WHERE status = 'approved'")
-        approved_pool = cursor.fetchall()
-        if approved_pool:
-            st.write("---")
-            st.subheader(f"📥 Export Workspace ({len(approved_pool)} Batches Verified)")
-            final_download_text = "\n\n=== FINAL CERTIFIED UPSC BANK ===\n\n" + "\n\n".join([q[0] for q in approved_pool])
-            st.download_button("Download Final Verified Question Bank (.txt)", final_download_text, file_name="Verified_UPSC_Bank.txt")
+            st.success("⚡ Processing Loop activated successfully! The AI engine is tracking page chunks.")
+            st.rerun()
     else:
-        st.info("No data tracking records logged in your database yet.")
-    conn.close()
+        book_id, processed, total, status = book_record
+        st.write("---")
+        st.metric(label=f"📖 Active Target: {uploaded_file.name}", value=f"{status.upper()} ({processed} / {total} Chunks Done)")
+        
+        # Load all cumulative questions immediately for quick download compiling
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id ASC", (book_id,))
+        raw_rows = cursor.fetchall()
+        conn.close()
+        
+        if raw_rows:
+            st.info(f"✨ Currently compiled {len(raw_rows)} complete question batches inside your target file.")
+            full_output_bank = f"=== MASTER QUESTION POOL FOR: {uploaded_file.name} ===\n\n" + "\n\n".join([row[0] for row in raw_rows])
+            
+            # Simple direct download button
+            st.download_button(
+                label="📥 Download Compiled Question Document (.txt)",
+                data=full_output_bank,
+                file_name=f"UPSC_Bank_{uploaded_file.name.replace('.pdf', '')}.txt",
+                mime="text/plain"
+            )
+        else:
+            st.warning("Worker is actively setting up tokens. Refresh your screen in a few moments to verify tracking lines.")
+            
+        if st.button("🗑️ Reset Engine & Clear Book Record"):
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM books WHERE id = ?", (book_id,))
+            cursor.execute("DELETE FROM questions WHERE book_id = ?", (book_id,))
+            conn.commit()
+            conn.close()
+            st.success("App storage cleared successfully.")
+            st.rerun()
+            
