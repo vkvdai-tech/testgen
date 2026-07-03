@@ -9,7 +9,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. DATABASE LAYER (Self-Healing Sequential Operational Cache)
+# 1. DATABASE LAYER
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -38,12 +38,12 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. CONFIGURATION & CORE SETUP
+# 2. CONFIGURATION & SIDEBAR MATRIX
 # ==============================================================================
 st.set_page_config(page_title="UPSC 12-Format Master Factory", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR APPLICATION
+ACCESS_PASSWORD = "your_secret_password_here"  # CHANGE THIS PASSWORD!
 
 with st.sidebar:
     st.header("🔐 Access Setup")
@@ -73,7 +73,7 @@ if not user_api_key:
 # ==============================================================================
 MASTER_PROMPT = """
 You are a Senior UPSC Civil Services Examination Paper Setter updated through the latest 2026 analytical trends. Your absolute mandate is to construct an exhaustive test pool matching this exact mathematical difficulty distribution:
-- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, resolving functional friction between different provisions/acts, or analyzing obscure structural exceptions.
+- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, resolving functional friction between different provisions/acts, or analyzing obscure exceptions.
 - 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
 - 10% EASY: Core standard factual baseline validations.
 
@@ -96,7 +96,7 @@ Leave exactly one blank line between questions. Do not output any introductory o
 """
 
 # ==============================================================================
-# 4. EXPLICIT 12-FORMAT GENERATION PIPELINE ENGINE (Total Isolated Frameworks)
+# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Total Isolated Frameworks)
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_choice=None):
     total_chunks = len(chunks)
@@ -107,7 +107,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
         "STRICTLY on the text block or topic provided. Deliver only clean, plain text blocks using the explicit structure assigned."
     )
 
-    # Dictionary containing all 12 distinct civil services question variations from your precise structural checklist
     FORMAT_BLUEPRINTS = {
         1: (
             "CRITICAL FORMAT RULE: You must generate a FORMAT 1: DIRECT / STANDALONE question.\n"
@@ -216,7 +215,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
         )
     }
 
-    # Iterate through chunks dynamically
     for index, chunk_text in enumerate(chunks):
         if len(chunk_text.strip()) < 50:
             chunk_context = f"CORE SYLLABUS DOMAIN THEME: {fallback_topic_name}"
@@ -224,10 +222,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             st.write(f"📖 Processing Source Segment Block {index+1} of {total_chunks}...")
             chunk_context = f"SOURCE MATERIAL CONTENT ZONE:\n{chunk_text}"
 
-        # Sequentially map all 12 distinct format identifiers
         for format_id in range(1, 13):
-            
-            # Fetch ongoing global history directly to lock down duplicates
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("SELECT content FROM questions WHERE book_id = ?", (book_id,))
@@ -238,15 +233,16 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             isolated_format_rule = FORMAT_BLUEPRINTS.get(format_id)
             
             current_prompt = (
+                f"{MASTER_PROMPT}\n\n"
+                f"--- EXECUTING TARGET TASK ---\n"
                 f"{chunk_context}\n\n"
                 f"{isolated_format_rule}\n\n"
                 f"ANTI-REPETITION CONSTRAINT MANDATE:\n"
-                f"You are forbidden from generating questions targeting the same items, clauses, or core phrases as previous outputs.\n"
-                f"Review your historical logging windows and ensure your output focuses on alternative sub-topics or unique conceptual angles:\n"
+                f"Do NOT focus on the same features or duplicate the exact statements found in this database log history:\n"
                 f"=== LOG OF PAST EXTRACTED QUESTIONS (AVOID) ===\n"
-                f"{compiled_history[:16000]}\n"
+                f"{compiled_history[:12000]}\n"
                 f"================================================\n\n"
-                f"Generate your isolated clean question structure payload block now."
+                f"Output your questions directly now."
             )
             
             try:
@@ -268,10 +264,11 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     raw_text = response.text
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key)
+                    # Fixed system definition block parameters to prevent shortcut loops
                     response = a_client.messages.create(
                         model=anthropic_model_choice,
                         max_tokens=4000,
-                        system=BASE_SYSTEM + "\n\n" + MASTER_PROMPT,
+                        system=BASE_SYSTEM,
                         messages=[{"role": "user", "content": current_prompt}],
                         temperature=0.3
                     )
