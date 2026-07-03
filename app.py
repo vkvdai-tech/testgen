@@ -9,7 +9,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. DATABASE LAYER
+# 1. CACHE LAYER ARCHITECTURE
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -38,21 +38,17 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. CONFIGURATION & SIDEBAR MATRIX
+# 2. APPLICATION WORKSPACE CONFIGURATION
 # ==============================================================================
-st.set_page_config(page_title="UPSC 12-Format Master Factory", layout="wide")
+st.set_page_config(page_title="UPSC Master Engine", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "your_secret_password_here"  # CHANGE THIS PASSWORD!
+ACCESS_PASSWORD = "your_secret_password_here"  # CHANGE TO YOUR TARGET KEY
 
 with st.sidebar:
     st.header("🔐 Access Setup")
     user_pass = st.text_input("Enter App Access Password", type="password")
-    
-    provider = st.selectbox(
-        "Select AI Provider", 
-        ["OpenAI (ChatGPT)", "Gemini (Google)", "Anthropic (Claude)"]
-    )
+    provider = st.selectbox("Select AI Provider", ["OpenAI (ChatGPT)", "Gemini (Google)", "Anthropic (Claude)"])
     
     anthropic_model = None
     if provider == "Anthropic (Claude)":
@@ -61,166 +57,67 @@ with st.sidebar:
     user_api_key = st.text_input(f"Enter {provider} API Key", type="password")
     
 if user_pass != ACCESS_PASSWORD:
-    st.warning("Please enter the correct App Access Password in the sidebar to unlock.")
+    st.warning("Please provide valid access credentials to continue.")
     st.stop()
 
 if not user_api_key:
-    st.info(f"Please provide your {provider} API Key to continue.")
+    st.info(f"Please provide your {provider} API key to start the run.")
     st.stop()
 
 # ==============================================================================
-# 3. HIGH-DIFFICULTY GLOBAL PAPER-SETTING FRAMEWORK
+# 3. HIGH-DIFFICULTY BLUEPRINT SPECIFICATION
 # ==============================================================================
 MASTER_PROMPT = """
-You are a Senior UPSC Civil Services Examination Paper Setter updated through the latest 2026 analytical trends. Your absolute mandate is to construct an exhaustive test pool matching this exact mathematical difficulty distribution:
-- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, resolving functional friction between different provisions/acts, or analyzing obscure exceptions.
-- 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
-- 10% EASY: Core standard factual baseline validations.
+You are a Senior UPSC CSE Paper Setter. Your absolute mandate is to construct an exhaustive test pool matching this difficulty distribution:
+- 60% BRUTAL BOUNCERS (Very Hard): 3rd-order conceptual reasoning or obscure structural exceptions.
+- 30% MEDIUM: Conceptual application questions with high-yield distractors.
+- 10% EASY: Core standard baseline validations.
 
-CRITICAL QUALITY ASSURANCE RULES:
-1. Every item must be a strict 4-option MCQ labeled (a), (b), (c), and (d). True/False structures or bare statement listings are strictly FORBIDDEN.
-2. Build distractors using convincing half-truths, close-synonym traps, context swaps, or misapplied timelines. Options must look exceptionally attractive but contain subtle, completely fatal logical flaws.
-3. Grounding: Rely ONLY on facts explicitly mentioned in the source material text or core syllabus theme. Do not use external data filler or invent non-existent quotes.
+CRITICAL INSTRUCTIONS:
+1. Output strict 4-option MCQs labeled (a), (b), (c), and (d). True/False formats are strictly FORBIDDEN.
+2. Build distractors using half-truths or context swaps that contain subtle, completely fatal logical flaws.
 
 Template Output Structure:
-Question: [Insert question text here]
+Question: [Insert question statement here]
 (a) [Option A]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
 Answer: [Correct letter only, e.g., (b)]
-Explanation: [Concise 3-4 sentence breakdown explicitly highlighting the logical trap designed to break pattern-matching habits and explain option validity]
-Topic: [Specific syllabus micro-topic tag]
+Explanation: [Concise 3-4 sentence analytical breakdown explaining option validity and logical trap mechanics]
+Topic: [Syllabus micro-topic tag]
 
-Leave exactly one blank line between questions. Do not output any introductory or concluding conversational padding or notes.
+Leave exactly one blank line between questions. No conversational padding or intro notes allowed.
 """
 
 # ==============================================================================
-# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Total Isolated Frameworks)
+# 4. TOKEN-OPTIMIZED GENERATION ENGINE
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_choice=None):
     total_chunks = len(chunks)
     progress_bar = st.progress(0.0)
     
-    BASE_SYSTEM = (
-        "You are a Senior UPSC CSE Paper Setter. Generate ultra-hard conceptual questions based "
-        "STRICTLY on the text block or topic provided. Deliver only clean, plain text blocks using the explicit structure assigned."
-    )
+    BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions according to the requested format instruction."
 
-    FORMAT_BLUEPRINTS = {
-        1: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 1: DIRECT / STANDALONE question.\n"
-            "Ensure distractors are specifically wrong in a testable way, containing recognizable concepts that an unprepared aspirant would consider plausible.\n"
-            "You can choose variant 1A (Positive Direct), 1B (Negative Direct using NOT/EXCEPT), 1C (Definitional), or 1D (Correct Set/Pair Pairings).\n"
-            "Follow the standard template format structure exactly."
-        ),
-        2: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 2A/2B/2C: MULTI-STATEMENT question.\n"
-            "Structure exactly like this:\n"
-            "Question: Consider the following statements:\n1. [Statement 1 - Near truth trap, plausible on the surface but wrong in one key detail]\n2. [Statement 2]\n3. [Statement 3]\n"
-            "Choose a variant sub-style: 'Which of the statements given above is/are correct?', 'Which of the statements given above is/are INCORRECT?', or 'How many of the statements given above are correct?'.\n"
-            "Constraint: Never make all statements correct or all incorrect. For 'how many correct', avoid 'All three' as the correct answer option choice."
-        ),
-        3: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 3: ASSERTION-REASON causal logic question.\n"
-            "You must evaluate the causal relationship between two statements without using 'since' or 'because' within the statement text. Follow this options grid structure EXACTLY:\n\n"
-            "Question: Statement-I: [Factual/empirical or constitutional claim about a phenomenon]\n"
-            "Statement-II: [Causal/explanatory claim about why Statement-I is true]\n"
-            "Which one of the following is correct in respect of the above statements?\n"
-            "(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I\n"
-            "(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I\n"
-            "(c) Statement-I is correct but Statement-II is incorrect\n"
-            "(d) Statement-I is incorrect but Statement-II is correct"
-        ),
-        4: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 4: MATCH THE FOLLOWING (Two-Column) question.\n"
-            "Structure exactly like this:\n"
-            "Question: Match List-I with List-II:\n"
-            "List-I | List-II\n"
-            "A. [Term/Event 1] | 1. [Description 1]\n"
-            "B. [Term/Event 2] | 2. [Description 2]\n"
-            "C. [Term/Event 3] | 3. [Description 3]\n"
-            "D. [Term/Event 4] | 4. [Description 4]\n"
-            "Choose the correct answer from the options given below:\n"
-            "    A  B  C  D\n"
-            "(a) 1  2  3  4\n"
-            "(b) 2  3  4  1\n"
-            "(c) 3  4  1  2\n"
-            "(d) 4  1  2  3\n"
-            "Constraint: Design options so that 2-3 matches are likely known, and 1 is the distinguishing factor requiring concept reasoning."
-        ),
-        5: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 5: THREE-COLUMN MATCH THE FOLLOWING question.\n"
-            "Structure exactly like this:\n"
-            "Question: Match List-I, List-II, and List-III:\n"
-            "List-I | List-II | List-III\n"
-            "A. [Item A1] | 1. [Item B1] | I. [Item C1]\n"
-            "B. [Item A2] | 2. [Item B2] | II. [Item C2]\n"
-            "C. [Item A3] | 3. [Item B3] | III. [Item C3]\n"
-            "D. [Item A4] | 4. [Item B4] | IV. [Item C4]\n"
-            "Which of the following combinations is correct?\n"
-            "(a) A-1-I, B-2-II, C-3-III, D-4-IV\n"
-            "(b) A-2-III, B-1-IV, C-4-I, D-3-II\n"
-            "(c) A-3-II, B-4-I, C-1-IV, D-2-III\n"
-            "(d) A-4-IV, B-3-III, C-2-II, D-1-I"
-        ),
-        6: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 6: CHRONOLOGICAL / SEQUENCE QUESTION.\n"
-            "Choose either Format A (Pure Chronology of acts/developments) or Format B (Procedural sequence steps). Follow this configuration schema layout:\n"
-            "Question: Consider the following developments:\n1. [Item 1]\n2. [Item 2]\n3. [Item 3]\n4. [Item 4]\n"
-            "What is the correct chronological order or representation sequence of the above?\n"
-            "(a) 1 -> 2 -> 3 -> 4\n(b) 3 -> 1 -> 4 -> 2\n(c) 2 -> 4 -> 1 -> 3\n(d) 1 -> 3 -> 2 -> 4"
-        ),
-        7: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 7: APPLIED / CURRENT AFFAIRS LINKED QUESTION.\n"
-            "Anchor the stem in a real policy development, Supreme Court judgment, international treaty, or named legislative event from the text material.\n"
-            "Structure using sub-variants 7A (News Anchor + Static Concept), 7B (Concept Application to Real Scenario), or 7C ('Which provision/act governs this situation').\n"
-            "Constraint: Always use real, explicit event names - no vague 'recently in news' text lines."
-        ),
-        8: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 8: SCENARIO-BASED / SITUATIONAL JUDGMENT (2026 trend).\n"
-            "Place a real-world governance dilemma, administrative conflict, or legal paradox in the stem. Do NOT ask it as an ethical choice; root it entirely in legal/constitutional correctness.\n"
-            "Structure exactly like this:\n"
-            "Question: [Elaborate a contextual scenario tracking executive powers or fundamental rights friction]. In the above context, which of the following actions/conclusions is the most constitutionally/legally appropriate?\n"
-            "(a) [Legally correct but contextually nuanced option]\n"
-            "(b) [Plausible but constitutionally overreaching option]\n"
-            "(c) [Procedurally reasonable but legally incorrect option]\n"
-            "(d) [Common-sense answer that misapplies the legal framework]"
-        ),
-        9: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 9: MAP-BASED / SPATIAL CONCEPTUAL QUESTION.\n"
-            "Test spatial awareness, borders, environmental features, National Parks, or regional treaty zones through text-based multi-statement descriptions.\n"
-            "Structure using either sub-style variants 9A (Location Identification), 9B (Spatial Relationship matrices), or 9C (Current Geography Linkages)."
-        ),
-        10: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 10: NEGATIVE MARKING TRAP question.\n"
-            "This question must be explicitly engineered to punish over-confident guessing via context loops. Follow this design logic layout:\n"
-            "Question: Which one of the following statements about [Target Concept] is correct?\n"
-            "(a) [Correct concept applied to correct context]\n"
-            "(b) [Correct concept applied to wrong context - primary distractor]\n"
-            "(c) [Related but different concept, described accurately - secondary distractor]\n"
-            "(d) [Partially correct - true in general, wrong in this specific case - tertiary distractor]"
-        ),
-        11: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 11: PASSAGE-BASED QUESTION.\n"
-            "Extract or compile a strict 3-8 line dense textual excerpt from a legal provision, act, or historic declaration. Follow this layout design exactly:\n"
-            "Question: Read the following passage:\n'[Insert 3-8 line analytical passage text excerpt]'\nWith reference to the above passage, which of the following inferences is/are correct?\n"
-            "1. [Inference A - directly verifiable from text]\n2. [Inference B - requires reading between lines logical deduction]\n3. [Inference C - plausible but unsupported trap going beyond text]\n"
-            "Options choices:\n(a) 1 only\n(b) 2 only\n(c) 1 and 2 only\n(d) 1, 2 and 3"
-        ),
-        12: (
-            "CRITICAL FORMAT RULE: You must generate a FORMAT 12: 'WHICH IS LEAST/MOST LIKELY' ANALYTICAL question.\n"
-            "Test relative conceptual impact significance or macroeconomic/political probabilities rather than static factual recall.\n"
-            "Structure the question stem explicitly using parameters like: 'With reference to [X], which of the following is the MOST LIKELY consequence of [Y]?', 'Which of the following is the LEAST LIKELY reason for [Z]?', or 'Which one of the following would have the GREATEST IMPACT on [outcome]?'"
-        )
+    # Compressed index dictionary to minimize input token processing limits
+    FORMAT_RULES = {
+        1: "Format: ASSERTION-REASON causal logic. Structure: 'Statement-I: [Fact] Statement-II: [Explanation] Both true and II correct explanation (a), both true but II not correct explanation (b), I true II false (c), I false II true (d)'. No 'since' or 'because' in statements.",
+        2: "Format: MULTI-STATEMENT COUNTABLE. Structure: 'Consider statements: 1... 2... 3... How many statements are correct? (a) Only one (b) Only two (c) All three (d) None'. Avoid 'All three' as correct answer.",
+        3: "Format: THREE-COLUMN MATCH MATRIX. Structure: 'Match Columns: Column A | Column B | Column C. How many pairs are correctly matched? (a) Only one pair (b) Only two pairs (c) All three pairs (d) None of the pairs'.",
+        4: "Format: ADMINISTRATIVE SCENARIO / SITUATIONAL JUDGMENT. Structure: Describe an intricate governance deadlock testing functional exceptions or legal boundary execution. Question: 'In this context, which action is constitutionally valid?'",
+        5: "Format: 2026 EVIDENCE-INFERENCE MATRIX. Structure: Present 3 facts (I, II, III) and 2 logical inferences (1, 2). Question: 'Which inferences logically follow? (a) 1 only (b) 2 only (c) Both 1 and 2 (d) Neither 1 nor 2'.",
+        6: "Format: CHRONOLOGICAL SEQUENCE. Structure: Present 4 events/acts/procedural steps. Question: 'What is the correct chronological sequence? (a) 1->2->3->4...'.",
+        7: "Format: APPLIED CURRENT AFFAIRS. Structure: Anchor stem in named policy/judgment. Test static underlying concept mechanics. No vague 'recently in news' lines.",
+        8: "Format: TWO-COLUMN MATCH CLASSIC. Structure: Match List-I with List-II. 4 items per list. Use option grid combinations. 1 item must be the distinguishing factor.",
+        9: "Format: PURE CONCEPTUAL ISOLATION. Structure: Question: 'Which statement best captures the exact operational legal boundary of [Concept Name]?'",
+        10: "Format: NEGATIVE MARKING TRAP. Structure: (a) Correct concept/context, (b) Correct concept/wrong context, (c) Related concept, (d) Partially correct but wrong in this specific case.",
+        11: "Format: PASSAGE-BASED COMPREHENSION. Structure: Provide real 3-8 line dense textual excerpt. Ask which inferences (1, 2, 3) follow using standard combinatorial choice patterns.",
+        12: "Format: ANALYTICAL PROBABILITY. Structure: Question stem must evaluate relative weight or impact using 'MOST LIKELY consequence', 'LEAST LIKELY reason', or 'GREATEST IMPACT'."
     }
 
     for index, chunk_text in enumerate(chunks):
-        if len(chunk_text.strip()) < 50:
-            chunk_context = f"CORE SYLLABUS DOMAIN THEME: {fallback_topic_name}"
-        else:
-            st.write(f"📖 Processing Source Segment Block {index+1} of {total_chunks}...")
-            chunk_context = f"SOURCE MATERIAL CONTENT ZONE:\n{chunk_text}"
+        chunk_context = f"THEME: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"SOURCE CONTENT:\n{chunk_text}"
+        st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
         for format_id in range(1, 13):
             conn = sqlite3.connect(DB_FILE)
@@ -230,18 +127,13 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             conn.close()
             compiled_history = "\n---\n".join([row[0] for row in global_history]) if global_history else "None"
 
-            isolated_format_rule = FORMAT_BLUEPRINTS.get(format_id)
+            target_rule = FORMAT_RULES.get(format_id)
             
             current_prompt = (
                 f"{MASTER_PROMPT}\n\n"
-                f"--- EXECUTING TARGET TASK ---\n"
                 f"{chunk_context}\n\n"
-                f"{isolated_format_rule}\n\n"
-                f"ANTI-REPETITION CONSTRAINT MANDATE:\n"
-                f"Do NOT focus on the same features or duplicate the exact statements found in this database log history:\n"
-                f"=== LOG OF PAST EXTRACTED QUESTIONS (AVOID) ===\n"
-                f"{compiled_history[:12000]}\n"
-                f"================================================\n\n"
+                f"TASK MAPPING REQUIREMENT:\n{target_rule}\n\n"
+                f"ANTI-REPETITION LOG (AVOID THESE CONCEPTS):\n{compiled_history[:10000]}\n\n"
                 f"Output your questions directly now."
             )
             
@@ -264,7 +156,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     raw_text = response.text
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key)
-                    # Fixed system definition block parameters to prevent shortcut loops
                     response = a_client.messages.create(
                         model=anthropic_model_choice,
                         max_tokens=4000,
@@ -283,7 +174,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     time.sleep(1)
 
             except Exception as e:
-                st.error(f"❌ Structural Execution Exception at Format {format_id}: {str(e)}")
+                st.error(f"❌ Execution failure at layout structure iteration {format_id}: {str(e)}")
                 break
         
         conn = sqlite3.connect(DB_FILE)
@@ -300,7 +191,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     conn.close()
 
 # ==============================================================================
-# 5. USER INTERFACE VIEW
+# 5. WORKSPACE FRAMEWORK
 # ==============================================================================
 def extract_robust_pdf_text(uploaded_pdf):
     text = ""
@@ -324,13 +215,13 @@ if uploaded_file:
 
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            with st.spinner("Extracting multi-column text vectors..."):
+            with st.spinner("Parsing layout structure..."):
                 full_text = extract_robust_pdf_text(uploaded_file)
             
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                st.info(f"Parsed {len(full_text)} characters. Initializing structural layout passes...")
+                st.info(f"Parsed {len(full_text)} context characters. Setting memory channels...")
                 chunk_size = 35000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
             
@@ -341,10 +232,10 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            with st.spinner("Executing full 12-Format sequential processing loop... This will build all variants."):
+            with st.spinner("Compiling structural variations... Please maintain active browser focus."):
                 chosen_claude = anthropic_model if provider == "Anthropic (Claude)" else None
                 process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, chosen_claude)
-            st.success("12-Format compilation loop completed successfully!")
+            st.success("Compilation loops finished successfully!")
             st.rerun()
     else:
         book_id, processed, total, status = book_record
@@ -378,5 +269,5 @@ if uploaded_file:
             cursor.execute("DELETE FROM questions")
             conn.commit()
             conn.close()
-            st.success("Engine successfully cleared and reset.")
+            st.success("App cache cleared successfully.")
             st.rerun()
