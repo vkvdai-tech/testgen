@@ -59,13 +59,17 @@ if not user_api_key:
     st.stop()
 
 # ==============================================================================
-# 3. PURE 4-OPTION UPSC MASTER PROMPT
+# 3. HIGH-DIFFICULTY UPSC EXTRACTION MASTER PROMPT (Brutal Standard Edition)
 # ==============================================================================
 MASTER_PROMPT = """
-You are an expert UPSC Civil Services Examination Paper Setter updated through the latest 2026 trends. Extract the MAXIMUM possible number of unique, high-difficulty, conceptual multiple-choice questions from the provided text block or topic.
+You are a Senior UPSC Civil Services Examination Paper Setter. Your absolute mandate is to design brutal, highly analytical, elite-tier MCQs that reward deep structural reasoning over memorization. 
 
-CRITICAL CONSTRAINTS:
-1. Structure: Every single question MUST be a strict 4-option multiple-choice question with options labeled exactly as (a), (b), (c), and (d). You are strictly FORBIDDEN from generating True/False structures or short-answer elements.
+CRITICAL EXAM CONSTRAINTS:
+1. Maximum Analytical Depth: Frame questions that test the functional friction between concepts, hidden constitutional nuances, exceptions to standard rules, and complex multi-layered historical sequences.
+2. Anti-Coaching Trap Mechanics: Avoid basic, surface-level factual recall. Craft distracting options (a, b, c, d) that use half-truths, misapplied constitutional articles, or inverted logic. One or two options must look incredibly attractive but contain subtle fatal flaws.
+3. Strict Grounding: Every question must be defensibly derived from the provided context or core syllabus.
+
+You must output strict 4-option multiple-choice questions labeled as (a), (b), (c), and (d). Do NOT generate True/False questions.
 
 Template Format:
 Question: [Insert question statement here]
@@ -73,11 +77,11 @@ Question: [Insert question statement here]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
-Answer: [Correct letter only, e.g., (c)]
-Explanation: [Concise 3-4 sentence concept analysis explaining why the answer is factually correct based on the text]
-Topic: [Specific syllabus micro-topic name]
+Answer: [Correct letter only, e.g., (b)]
+Explanation: [Concise 3-4 sentence analytical breakdown explaining the subtle logical trap and why the option is defensibly correct]
+Topic: [Specific micro-topic syllabus tag]
 
-Leave exactly one blank line between questions. Do not include conversational filler words.
+Leave exactly one blank line between questions. Do not include introductory conversational text.
 """
 
 # ==============================================================================
@@ -112,10 +116,23 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
         while loop_counter <= 4:
             target_format = FORMAT_ROTATION.get(loop_counter, "Standard 4-option complex UPSC MCQ.")
             current_prompt = (
+            cursor.execute("SELECT content FROM questions WHERE book_id = ?", (book_id,))
+        global_history = cursor.fetchall()
+        compiled_history_text = "\n---\n".join([row[0] for row in global_history]) if global_history else "None"
+
+        while loop_counter <= 4:
+            target_format = FORMAT_ROTATION.get(loop_counter, "Standard 4-option complex UPSC MCQ.")
+            
+            current_prompt = (
                 f"{chunk_context}\n\n"
-                f"MANDATORY PATTERN RULE: Generate a fresh batch of strict 4-option multiple choice questions using exclusively these target formats: {target_format}\n"
-                f"Ensure absolute structural diversity. History to avoid duplication:\n" + "\n---\n".join(segment_history) + "\n\n"
-                f"Execute generation now."
+                f"MANDATORY PATTERN RULE: Generate questions using exclusively this target format: {target_format}\n"
+                f"CRITICAL ANTI-REPETITION CONSTRAINT:\n"
+                f"You are STRICTLY FORBIDDEN from repeating any historical themes, constitutional articles, core concepts, or option phrasing from previous loops.\n"
+                f"Review this list of questions already generated for this run and ensure your new questions target completely different sub-topics and different logical angles:\n"
+                f"=== ALREADY GENERATED QUESTIONS TO AVOID ===\n"
+                f"{compiled_history_text[:12000]}\n"  # Feeds a safe memory slice of history back to block loops
+                f"============================================\n\n"
+                f"Execute elite question generation now."
             )
             
             try:
