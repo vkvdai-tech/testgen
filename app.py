@@ -103,7 +103,7 @@ Leave exactly one blank line between questions. No conversational chatter or int
 """
 
 # ==============================================================================
-# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Robust Catch Configuration)
+# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Robust Timeout Fix Configuration)
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
     total_chunks = len(chunks)
@@ -111,12 +111,11 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     
     BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions according to the requested format instruction."
 
-    # Grouped batches optimized to prevent prompting overhead connection dropouts
     BATCHED_FORMATS = {
-        1: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 1, FORMAT 2, and FORMAT 3. Ensure 60% are Very Hard bouncers.",
-        2: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 4, FORMAT 5, and FORMAT 6.",
-        3: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 7, FORMAT 8, and FORMAT 9.",
-        4: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 10, FORMAT 11, and FORMAT 12."
+        1: "Task: Generate 3 unique questions mixing FORMAT 1, FORMAT 2, and FORMAT 3. Ensure 60% are Very Hard bouncers.",
+        2: "Task: Generate 3 unique questions mixing FORMAT 4, FORMAT 5, and FORMAT 6.",
+        3: "Task: Generate 3 unique questions mixing FORMAT 7, FORMAT 8, and FORMAT 9.",
+        4: "Task: Generate 3 unique questions mixing FORMAT 10, FORMAT 11, and FORMAT 12."
     }
 
     for index, chunk_text in enumerate(chunks):
@@ -147,7 +146,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 f"Output your questions directly now."
             )
             
-            # Implementation of adaptive network retry frames
             raw_text = ""
             for retry_attempt in range(1, 4):
                 try:
@@ -168,7 +166,8 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         )
                         raw_text = response.text
                     elif provider == "Anthropic (Claude)":
-                        a_client = anthropic.Anthropic(api_key=api_key)
+                        # FIXED: Injected an explicit 120-second timeout limit to hold socket state open safely
+                        a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
                         response = a_client.messages.create(
                             model=anthropic_model_string,
                             max_tokens=4000,
@@ -179,13 +178,13 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         raw_text = response.content[0].text
                     
                     if len(raw_text.strip()) > 50:
-                        break  # Successful execution break
+                        break  
                         
                 except Exception as api_err:
                     if retry_attempt == 3:
                         st.error(f"❌ Connection Dropped Permanently at Batch {batch_id}: {str(api_err)}")
                     else:
-                        time.sleep(2)  # Wait for network buffer to clear
+                        time.sleep(3)  # Adaptive delay backup frame
 
             if len(raw_text.strip()) > 50 and "SEGMENT_EXHAUSTED" not in raw_text:
                 conn = sqlite3.connect(DB_FILE)
@@ -233,7 +232,7 @@ if uploaded_file:
 
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            # Auto-Rectifier: Force clear stale overlapping file cache lines before running
+            # Auto-Rectifier: Clears stale database blocks to prevent early locks
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM books")
@@ -247,9 +246,10 @@ if uploaded_file:
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                st.info(f"Parsed {len(full_text)} characters. Initializing context vectors...")
-                chunk_size = 35000
+                # FIXED: Lowered data chunk boundaries down to 8,000 to keep prompt loads optimized for Claude
+                chunk_size = 8000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
+                st.info(f"Parsed {len(full_text)} characters into {len(chunks)} optimized chunks. Initializing processing...")
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
