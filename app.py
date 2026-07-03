@@ -43,7 +43,7 @@ init_db()
 st.set_page_config(page_title="UPSC Master Engine", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "your_secret_password_here"  # CHANGE TO YOUR TARGET KEY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE TO YOUR TARGET KEY
 
 with st.sidebar:
     st.header("🔐 Access Setup")
