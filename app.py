@@ -9,7 +9,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. CACHE LAYER ARCHITECTURE
+# 1. DATABASE LAYER (Self-Healing Sequential Operational Cache)
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -38,12 +38,12 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. APPLICATION WORKSPACE CONFIGURATION
+# 2. CONFIGURATION & CORE SETUP
 # ==============================================================================
-st.set_page_config(page_title="UPSC Master Engine", layout="wide")
+st.set_page_config(page_title="UPSC 12-Format Master Factory", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE TO YOUR TARGET KEY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR SECURITY!
 
 with st.sidebar:
     st.header("🔐 Access Setup")
@@ -65,33 +65,45 @@ if not user_api_key:
     st.stop()
 
 # ==============================================================================
-# 3. HIGH-DIFFICULTY BLUEPRINT SPECIFICATION
+# 3. HIGH-DIFFICULTY GLOBAL PAPER-SETTING FRAMEWORK
 # ==============================================================================
 MASTER_PROMPT = """
-You are a Senior UPSC CSE Paper Setter. Your absolute mandate is to construct an exhaustive test pool matching this difficulty distribution:
-- 60% BRUTAL BOUNCERS (Very Hard): 3rd-order conceptual reasoning, structural exceptions, or multi-layered causal assertions.
+You are a Senior UPSC Civil Services Examination Paper Setter updated through the latest 2026 analytical trends. 
+Your absolute mandate is to construct an exhaustive test pool from the provided text matching this exact difficulty distribution:
+- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, complex exceptions, or practical functional deadlocks.
 - 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
-- 10% EASY: Core standard baseline validations.
+- 10% EASY: Core standard factual baseline validations.
 
-CRITICAL INSTRUCTIONS:
-1. Output strict 4-option MCQs labeled (a), (b), (c), and (d). True/False structures or bare statement lists are strictly FORBIDDEN.
-2. Build distractors using half-truths or context swaps that contain subtle, completely fatal logical flaws.
+CRITICAL FORMAT-MIXING DIRECTIONS:
+You must review the source text and generate questions using a diverse mix of the following 12 core formats:
+- FORMAT 1 (Direct/Standalone): One stem; one clear correct answer. (Includes 1A Positive, 1B Negative NOT/EXCEPT, 1C Definitional, 1D Category Sets).
+- FORMAT 2 (Multi-Statement): 'Consider the following statements: 1... 2... 3...'. Sub-variants: 2A (Which is correct combo options), 2B (Which is incorrect), 2C (How many statements are correct - prefer 'Only one' or 'Only two' as answers). 
+- FORMAT 3 (Assertion-Reason): 'Statement-I: [Factual claim]. Statement-II: [Causal explanation why I is true]'. Options: (a) Both correct and II is correct explanation, (b) Both correct but II is NOT correct explanation, (c) I correct II incorrect, (d) I incorrect II correct. No 'since' or 'because' within statements.
+- FORMAT 4 (Two-Column Match): Match List-I with List-II using standard option combinations.
+- FORMAT 5 (Three-Column Match Matrix): Match List-I, List-II, and List-III using a combination grid option (e.g., A-1-I, B-2-II...). High Priority.
+- FORMAT 6 (Chronological Order): Sequence 4 historical events, acts, or procedural legislative steps.
+- FORMAT 7 (Applied / Current Affairs): Anchor stem in named policy/judgment/scheme context. Test the static underlying concept mechanics.
+- FORMAT 8 (Scenario-Based Situational Judgment): Place an elaborate legal dilemma or constitutional friction in the stem. Ask which outcome/action is legally valid. Root in legal correctness, not general ethics.
+- FORMAT 9 (Spatial/Map Awareness): Text-based tracking of geographical boundaries, locations, regional river paths, or territorial jurisdictions.
+- FORMAT 10 (Negative Marking Trap Logic): Intentionally design option (b) as a correct concept applied to the wrong context, and option (d) as true in general but wrong in this specific case.
+- FORMAT 11 (Passage-Based Inference): Provide a real 3-8 line textual document excerpt. Ask which inferences (1, 2, 3) follow using standard choice combinations.
+- FORMAT 12 (Analytical Probability): Evaluate significance or likelihood using 'MOST LIKELY consequence', 'LEAST LIKELY reason', or 'GREATEST IMPACT'.
 
-Template Output Structure:
+OUTPUT TEMPLATE (Repeat for each question generated):
 Question: [Insert question statement here]
 (a) [Option A]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
-Answer: [Correct letter only, e.g., (b)]
-Explanation: [Concise 3-4 sentence analytical breakdown explaining option validity and logical trap mechanics]
-Topic: [Syllabus micro-topic tag]
+Answer: [Correct letter only, e.g., (c)]
+Explanation: [Concise 3-4 sentence analytical breakdown explicitly highlighting the logical trap designed to break pattern-matching habits]
+Topic: [Specific syllabus micro-topic tag]
 
-Leave exactly one blank line between questions. No conversational padding or intro notes allowed.
+Leave exactly one blank line between questions. No conversational chatter or intro notes allowed.
 """
 
 # ==============================================================================
-# 4. CACHE-OPTIMIZED BATCH GENERATION ENGINE
+# 4. EXPLICIT 12-FORMAT GENERATION ENGINE (Robust Catch Configuration)
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
     total_chunks = len(chunks)
@@ -101,10 +113,10 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
 
     # Grouped batches optimized to prevent prompting overhead connection dropouts
     BATCHED_FORMATS = {
-        1: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 1 (Direct Standalone), FORMAT 2 (Multi-Statement Countable/Correct), and FORMAT 3 (Assertion-Reason Statement I & II causal logic).",
-        2: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 4 (Two-Column Match Lists), FORMAT 5 (Three-Column Match Matrix), and FORMAT 6 (Chronological Sequence/Timeline).",
-        3: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 7 (Applied Current Affairs Policies), FORMAT 8 (Scenario-Based Situational Governance Dilemmas), and FORMAT 9 (Spatial/Map Boundary Analysis).",
-        4: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 10 (Negative Marking Context-Swap Traps), FORMAT 11 (Passage-Based Document Inferences), and FORMAT 12 (Analytical Probability Outcomes)."
+        1: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 1, FORMAT 2, and FORMAT 3. Ensure 60% are Very Hard bouncers.",
+        2: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 4, FORMAT 5, and FORMAT 6.",
+        3: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 7, FORMAT 8, and FORMAT 9.",
+        4: "Task: Generate a set of 3 unique questions dynamically mixing FORMAT 10, FORMAT 11, and FORMAT 12."
     }
 
     for index, chunk_text in enumerate(chunks):
@@ -112,14 +124,12 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
         for batch_id in range(1, 5):
-            # Fetch highly compressed negative constraints to maximize token cache efficiencies
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id DESC LIMIT 3", (book_id,))
             recent_rows = cursor.fetchall()
             conn.close()
             
-            # Extracts unique keyword traces rather than dumping whole strings back into the context windows
             history_hints = []
             for row in recent_rows:
                 found_topics = re.findall(r"Topic:\s*(.*)", row[0])
@@ -132,50 +142,58 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             current_prompt = (
                 f"{MASTER_PROMPT}\n\n"
                 f"{chunk_context}\n\n"
-                f"TASK BATCH ASSIGNMENT:\n{target_batch_rule}\n\n"
-                f"CRITICAL CONSTRAINT: Do NOT target or reuse these sub-topics/concepts already generated: [{compiled_hints}]\n\n"
+                f"CURRENT EXECUTION REQUIREMENT FOR THIS BATCH:\n{target_batch_rule}\n\n"
+                f"ANTI-REPETITION CONSTRAINT MANDATE:\nDo NOT target or reuse these sub-topics/concepts: [{compiled_hints}]\n\n"
                 f"Output your questions directly now."
             )
             
-            try:
-                if provider == "OpenAI (ChatGPT)":
-                    o_client = OpenAI(api_key=api_key)
-                    response = o_client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
-                        temperature=0.35
-                    )
-                    raw_text = response.choices[0].message.content
-                elif provider == "Gemini (Google)":
-                    g_client = genai.Client(api_key=api_key)
-                    response = g_client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=current_prompt,
-                        config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.35)
-                    )
-                    raw_text = response.text
-                elif provider == "Anthropic (Claude)":
-                    a_client = anthropic.Anthropic(api_key=api_key)
-                    response = a_client.messages.create(
-                        model=anthropic_model_string,
-                        max_tokens=4000,
-                        system=BASE_SYSTEM,
-                        messages=[{"role": "user", "content": current_prompt}],
-                        temperature=0.35
-                    )
-                    raw_text = response.content[0].text
+            # Implementation of adaptive network retry frames
+            raw_text = ""
+            for retry_attempt in range(1, 4):
+                try:
+                    if provider == "OpenAI (ChatGPT)":
+                        o_client = OpenAI(api_key=api_key)
+                        response = o_client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
+                            temperature=0.35
+                        )
+                        raw_text = response.choices[0].message.content
+                    elif provider == "Gemini (Google)":
+                        g_client = genai.Client(api_key=api_key)
+                        response = g_client.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=current_prompt,
+                            config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.35)
+                        )
+                        raw_text = response.text
+                    elif provider == "Anthropic (Claude)":
+                        a_client = anthropic.Anthropic(api_key=api_key)
+                        response = a_client.messages.create(
+                            model=anthropic_model_string,
+                            max_tokens=4000,
+                            system=BASE_SYSTEM,
+                            messages=[{"role": "user", "content": current_prompt}],
+                            temperature=0.35
+                        )
+                        raw_text = response.content[0].text
+                    
+                    if len(raw_text.strip()) > 50:
+                        break  # Successful execution break
+                        
+                except Exception as api_err:
+                    if retry_attempt == 3:
+                        st.error(f"❌ Connection Dropped Permanently at Batch {batch_id}: {str(api_err)}")
+                    else:
+                        time.sleep(2)  # Wait for network buffer to clear
 
-                if len(raw_text.strip()) > 50 and "SEGMENT_EXHAUSTED" not in raw_text:
-                    conn = sqlite3.connect(DB_FILE)
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO questions (book_id, content) VALUES (?, ?)", (book_id, raw_text))
-                    conn.commit()
-                    conn.close()
-                    time.sleep(1)
-
-            except Exception as e:
-                st.error(f"❌ API Processing Failure at Batch iteration {batch_id}: {str(e)}")
-                break
+            if len(raw_text.strip()) > 50 and "SEGMENT_EXHAUSTED" not in raw_text:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO questions (book_id, content) VALUES (?, ?)", (book_id, raw_text))
+                conn.commit()
+                conn.close()
+                time.sleep(1)
         
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -191,7 +209,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     conn.close()
 
 # ==============================================================================
-# 5. WORKSPACE FRAMEWORK
+# 5. USER INTERFACE LAYER
 # ==============================================================================
 def extract_robust_pdf_text(uploaded_pdf):
     text = ""
@@ -205,23 +223,31 @@ def extract_robust_pdf_text(uploaded_pdf):
 uploaded_file = st.file_uploader("Upload Topic / Chapter PDF", type=["pdf"])
 
 if uploaded_file:
+    clean_topic_name = re.sub(r'[-_]', ' ', uploaded_file.name.replace('.pdf', '')).title()
+    
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("SELECT id, processed_segments, total_segments, status FROM books WHERE filename = ?", (uploaded_file.name,))
     book_record = cursor.fetchone()
     conn.close()
 
-    clean_topic_name = re.sub(r'[-_]', ' ', uploaded_file.name.replace('.pdf', '')).title()
-
     if not book_record:
         if st.button("🚀 Start Generating UPSC Questions"):
-            with st.spinner("Parsing layout structure..."):
+            # Auto-Rectifier: Force clear stale overlapping file cache lines before running
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM books")
+            cursor.execute("DELETE FROM questions")
+            conn.commit()
+            conn.close()
+            
+            with st.spinner("Extracting text matrix layers..."):
                 full_text = extract_robust_pdf_text(uploaded_file)
             
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                st.info(f"Parsed {len(full_text)} context characters. Setting memory channels...")
+                st.info(f"Parsed {len(full_text)} characters. Initializing context vectors...")
                 chunk_size = 35000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
             
@@ -232,9 +258,9 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            with st.spinner("Compiling structural variations... Please maintain active browser focus."):
+            with st.spinner("Compiling structural variations... Please keep this window open."):
                 process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, anthropic_model_choice)
-            st.success("Compilation loops finished successfully!")
+            st.success("Compilation loop complete!")
             st.rerun()
     else:
         book_id, processed, total, status = book_record
