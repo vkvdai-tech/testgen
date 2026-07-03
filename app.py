@@ -184,6 +184,9 @@ def bulk_generation_worker(book_id, chunks, provider, api_key):
 # ==============================================================================
 # 5. MAIN WORKSPACE VIEW WITH AUTO-REFRESH FRAGMENT
 # ==============================================================================
+# ==============================================================================
+# 5. MAIN WORKSPACE VIEW WITH AUTO-REFRESH FRAGMENT (Download Option Always Open)
+# ==============================================================================
 def extract_pdf_text(uploaded_pdf):
     reader = PdfReader(uploaded_pdf)
     text = ""
@@ -225,14 +228,16 @@ if uploaded_file:
         book_id, processed, total, status = book_record
         st.write("---")
         
-        # UI Auto-refresh loop block (Refreshes metrics and downloads panel automatically every 6 seconds)
-        @st.fragment(run_every=6)
-        def show_live_status(b_id, tot, f_name):
+        # UI Auto-refresh loop block (Refreshes metrics and downloads panel automatically every 5 seconds)
+        @st.fragment(run_every=5)
+        def show_live_status(b_id, tot, f_name, current_status):
             conn_live = sqlite3.connect(DB_FILE)
             cur_live = conn_live.cursor()
             
             cur_live.execute("SELECT processed_segments, status FROM books WHERE id = ?", (b_id,))
-            proc, stat = cur_live.fetchone()
+            db_metrics = cur_live.fetchone()
+            proc = db_metrics[0] if db_metrics else processed
+            stat = db_metrics[1] if db_metrics else current_status
             
             cur_live.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id ASC", (b_id,))
             raw_rows = cur_live.fetchall()
@@ -242,24 +247,29 @@ if uploaded_file:
             st.metric(
                 label=f"📖 Active Target: {f_name}", 
                 value=f"Status: {stat.upper()}", 
-                delta=f"{proc} / {tot} Chunks Done"
+                delta=f"{proc} / {tot} Chunks Extracted"
             )
             
-            if raw_rows:
-                st.success(f"✨ Compiled {len(raw_rows)} distinct raw question blocks inside storage.")
-                full_output_bank = f"=== MASTER QUESTION POOL FOR: {f_name} ===\n\n" + "\n\n".join([row[0] for row in raw_rows])
-                
-                st.download_button(
-                    label="📥 Download Compiled Question Document (.txt)",
-                    data=full_output_bank,
-                    file_name=f"UPSC_Bank_{f_name.replace('.pdf', '')}.txt",
-                    mime="text/plain"
-                )
-            else:
-                st.info("Connecting token channels... The status delta above will automatically increment as blocks complete.")
-        
-        show_live_status(book_id, total, uploaded_file.name)
+            # Build text payload dynamically even if it's currently running empty
+            compiled_questions = "\n\n".join([row[0] for row in raw_rows]) if raw_rows else ""
+            full_output_bank = f"=== MASTER QUESTION POOL FOR: {f_name} ===\n\n{compiled_questions}"
             
+            st.write("---")
+            st.subheader("📥 Export Management Panel")
+            st.info(f"✨ Total generated items caught in database: {len(raw_rows)} batches.")
+            
+            # The download button is now completely unlinked from the IF condition so it never goes missing
+            st.download_button(
+                label="📥 Download Compiled Question Document (.txt)",
+                data=full_output_bank,
+                file_name=f"UPSC_Bank_{f_name.replace('.pdf', '')}.txt",
+                mime="text/plain",
+                disabled=(len(raw_rows) == 0) # Button turns clickable the exact second the first question drops!
+            )
+        
+        show_live_status(book_id, total, uploaded_file.name, status)
+            
+        st.write("---")
         if st.button("🗑️ Reset Engine & Clear Book Record"):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
