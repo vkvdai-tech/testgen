@@ -122,8 +122,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
 
         while loop_counter <= 4:
             target_format = FORMAT_ROTATION.get(loop_counter, "Standard 4-option complex UPSC MCQ.")
-            
-            current_prompt = (
+             current_prompt = (
                 f"{chunk_context}\n\n"
                 f"MANDATORY PATTERN RULE: Generate questions using exclusively this target format: {target_format}\n"
                 f"CRITICAL ANTI-REPETITION CONSTRAINT:\n"
