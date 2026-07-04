@@ -48,10 +48,10 @@ init_db()
 # ==============================================================================
 # 2. CONFIGURATION & SIDEBAR MATRIX
 # ==============================================================================
-st.set_page_config(page_title="UPSC High-Volume Factory", layout="wide")
+st.set_page_config(page_title="UPSC 2018-2026 Pattern Factory", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR SECURITY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR SECURITY
 
 with st.sidebar:
     st.header("🔐 Access Setup")
@@ -69,22 +69,23 @@ if user_pass != ACCESS_PASSWORD:
     st.stop()
 
 if not user_api_key:
-    st.info("Please provide your API key to unlock the engine pipeline.")
+    st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
     st.stop()
 
 # ==============================================================================
-# 3. HIGH-DIFFICULTY GLOBAL PAPER-SETTING FRAMEWORK
+# 3. HIGH-DIFFICULTY 2018-2026 PATTERN-MATCHED FRAMEWORK
 # ==============================================================================
 MASTER_PROMPT = """
-You are a Senior UPSC Civil Services Examination Paper Setter updated through the latest 2026 analytical trends. 
-Your absolute mandate is to construct an exhaustive test pool matching this exact difficulty distribution:
-- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, complex exceptions, or practical functional deadlocks.
+You are an expert Senior UPSC Civil Services Examination Paper Setter matching the exact conceptual trends of the official 2018–2026 GS Paper I booklets. 
+Your absolute mandate is to construct questions matching this strict conceptual difficulty distribution:
+- 60% BRUTAL BOUNCERS (Very Hard): 3rd-order conceptual deductions, multi-layered statutory intersections, or obscure administrative operational exceptions.
 - 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
 - 10% EASY: Core standard factual baseline validations.
 
-CRITICAL INSTRUCTIONS:
-1. Every item must be a strict 4-option MCQ labeled (a), (b), (c), and (d). True/False structures or bare statement lists are strictly FORBIDDEN.
-2. Grounding: Rely ONLY on facts explicitly mentioned in the source material text or core syllabus theme.
+CRITICAL MOCK PAPER BALANCING RULES (2018-2026 INSIGHTS):
+1. For Multi-Statement Countable questions, do NOT always make exactly two statements correct. Systematically vary the logical conditions so that 'Only one', 'Only two', 'All three', and 'None' are evenly balanced as the correct option keys.
+2. For Assertion-Reason layouts, design the statements so that often both statements are true but Statement-II is completely irrelevant to Statement-I, or design it so Statement-I is a common misconception (Incorrect) and Statement-II is valid (Correct).
+3. Do NOT use the informal words 'trap', 'trick', or 'bait' anywhere in the output text. Use formal academic language.
 
 OUTPUT TEMPLATE (You must match this layout exactly):
 Question: [Insert question statement here]
@@ -111,7 +112,7 @@ def shuffle_and_balance_options(raw_question_text):
     try:
         q_match = re.search(r"Question:(.*?)(?=\(a\))", raw_question_text, re.DOTALL | re.IGNORECASE)
         a_match = re.search(r"\(a\)(.*?)(?=\(b\))", raw_question_text, re.DOTALL | re.IGNORECASE)
-        b_match = re.search(r"\(b\)(.*?)(\c\))", raw_question_text, re.DOTALL | re.IGNORECASE)
+        b_match = re.search(r"\(b\)(.*?)(?=\(c\))", raw_question_text, re.DOTALL | re.IGNORECASE)
         c_match = re.search(r"\(c\)(.*?)(?=\(d\))", raw_question_text, re.DOTALL | re.IGNORECASE)
         d_match = re.search(r"\(d\)(.*?)(?=Answer:)", raw_question_text, re.DOTALL | re.IGNORECASE)
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
@@ -171,21 +172,21 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     total_chunks = len(chunks)
     progress_bar = st.progress(0.0)
     
-    BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions according to the requested format instruction."
+    BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions matching the explicit requested format architecture template rule."
 
     FORMAT_BLUEPRINTS = {
-        1: "You MUST generate exactly 1 question in FORMAT 1: DIRECT / STANDALONE question style (Variant 1A, 1B, 1C, or 1D). Ensure distractors are highly plausible.",
-        2: "You MUST generate exactly 1 question in FORMAT 2: MULTI-STATEMENT style. Use variants 2A or 2B (Which statement is/are correct/incorrect). Never make all statements correct or all incorrect.",
-        3: "You MUST generate exactly 1 question in FORMAT 2C: MULTI-STATEMENT COUNTABLE style. Use the exact layout: 'How many of the statements given above are correct? (a) Only one (b) Only two (c) All three (d) None'. Avoid 'All three' as the correct answer.",
-        4: "You MUST generate exactly 1 question in FORMAT 3: ASSERTION-REASON causal logic style. Follow this layout structure EXACTLY:\nQuestion: Statement-I: [Factual claim]. Statement-II: [Causal explanation why Statement-I is true]. Which one of the following is correct?\n(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I\n(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I\n(c) Statement-I is correct but Statement-II is incorrect\n(d) Statement-I is incorrect but Statement-II is correct",
-        5: "You MUST generate exactly 1 question in FORMAT 4: TWO-COLUMN MATCH THE FOLLOWING style. Match List-I with List-II using standard option combinations (e.g., A-1, B-2, C-3, D-4).",
-        6: "You MUST generate exactly 1 question in FORMAT 5: THREE-COLUMN MATCH THE FOLLOWING style. Structure exactly as: Column A (Term) | Column B (Provisions) | Column C (Context). Question: 'Which of the following combinations is correct? (a) A-1-I, B-2-II...'.",
-        7: "You MUST generate exactly 1 question in FORMAT 6: CHRONOLOGICAL SEQUENCE style. Arrange 4 historical events, legal acts, or procedural steps in their correct sequence.",
-        8: "You MUST generate exactly 1 question in FORMAT 7: APPLIED / CURRENT AFFAIRS LINKED style. Anchor the stem in a real policy development or named judgment from the text material.",
-        9: "You MUST generate exactly 1 question in FORMAT 8: SCENARIO-BASED / SITUATIONAL JUDGMENT style. Place a complex administrative deadlock or executive-legal paradox in the stem and evaluate constitutional validities.",
-        10: "You MUST generate exactly 1 question in FORMAT 9: SPATIAL CONCEPTUAL / REGIONAL BOUNDARY style testing text-based geographic jurisdictions or regional interactions.",
-        11: "You MUST generate exactly 1 question in FORMAT 11: PASSAGE-BASED COMPREHENSION inference style. Provide a dense 3-8 line textual excerpt from the text and ask which inferences (1, 2, 3) logically follow.",
-        12: "You MUST generate exactly 1 question in FORMAT 12: 'WHICH IS LEAST/MOST LIKELY' ANALYTICAL style evaluating relative significance using terms like 'MOST LIKELY consequence' or 'GREATEST IMPACT'."
+        1: "Format Rule: Generate a unique question in FORMAT 1: DIRECT / STANDALONE question style (Variant 1A, 1B, 1C, or 1D). Ensure options contain realistic half-truths.",
+        2: "Format Rule: Generate a unique question in FORMAT 2: MULTI-STATEMENT style. Use variants 2A or 2B (Which statement is/are correct/incorrect with classic option choices).",
+        3: "Format Rule: Generate a unique question in FORMAT 2C: MULTI-STATEMENT COUNTABLE style matching 2022-2026 trends. Use the exact text layout: 'How many of the statements given above are correct? (a) Only one (b) Only two (c) All three (d) None'. Make sure the correct option distribution varies.",
+        4: "Format Rule: Generate a unique question in FORMAT 3: ASSERTION-REASON causal logic style. Follow this layout structure EXACTLY:\nQuestion: Statement-I: [Factual claim]. Statement-II: [Causal explanation why Statement-I is true]. Which one of the following is correct?\n(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I\n(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I\n(c) Statement-I is correct but Statement-II is incorrect\n(d) Statement-I is incorrect but Statement-II is correct",
+        5: "Format Rule: Generate a unique question in FORMAT 4: TWO-COLUMN MATCH THE FOLLOWING style. Match List-I with List-II using standard option combinations (A-1, B-2, C-3, D-4).",
+        6: "Format Rule: Generate a unique question in FORMAT 5: THREE-COLUMN MATCH THE FOLLOWING style (UPSC 2024-2026 trend). Structure exactly as: Column A (Term) | Column B (Provisions) | Column C (Context). Question: 'Which of the following combinations is correct? (a) A-1-I, B-2-II...'.",
+        7: "Format Rule: Generate a unique question in FORMAT 6: CHRONOLOGICAL SEQUENCE style. Arrange 4 historical developments, legal acts, or procedural steps in their correct sequence.",
+        8: "Format Rule: Generate a unique question in FORMAT 7: APPLIED / CURRENT AFFAIRS LINKED style. Anchor the stem in a real policy development or named judgment from the text material.",
+        9: "Format Rule: Generate a unique question in FORMAT 8: SCENARIO-BASED / SITUATIONAL JUDGMENT style (2026 trend). Place a complex administrative deadlock or executive-legal paradox in the stem and evaluate constitutional validities.",
+        10: "Format Rule: Generate a unique question in FORMAT 9: SPATIAL CONCEPTUAL / REGIONAL BOUNDARY style testing text-based geographic jurisdictions or regional interactions.",
+        11: "Format Rule: Generate a unique question in FORMAT 11: PASSAGE-BASED COMPREHENSION inference style. Provide a dense 3-8 line textual excerpt from the text and ask which inferences (1, 2, 3) logically follow.",
+        12: "Format Rule: Generate a unique question in FORMAT 12: 'WHICH IS LEAST/MOST LIKELY' ANALYTICAL style evaluating relative significance using terms like 'MOST LIKELY consequence' or 'GREATEST IMPACT'."
     }
 
     for index, chunk_text in enumerate(chunks):
@@ -301,7 +302,7 @@ if uploaded_file:
     conn.close()
 
     if not book_record:
-        if st.button("🚀 Start Generating UPSC Questions"):
+        if st.button("🚀 Start Generating Pattern-Matched Questions"):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM books")
@@ -315,7 +316,6 @@ if uploaded_file:
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                # OPTIMIZED STEP: Dropped chunk boundaries to 5000 to maximize volume safely
                 chunk_size = 5000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
                 st.info(f"Parsed {len(full_text)} characters into {len(chunks)} high-density segments.")
@@ -351,6 +351,7 @@ if uploaded_file:
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
         
+        # UI Metrics Cards Dashboard Display
         st.header("🛡️ Automated Question Bank Quality Core Validation")
         
         col1, col2, col3 = st.columns(3)
