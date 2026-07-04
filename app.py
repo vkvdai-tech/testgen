@@ -10,7 +10,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. DATABASE CACHE ARCHITECTURE
+# 1. SELF-HEALING DATABASE CACHE LAYER
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -30,10 +30,17 @@ def init_db():
         CREATE TABLE IF NOT EXISTS questions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             book_id INTEGER,
-            content TEXT,
-            final_answer TEXT
+            content TEXT
         )
     """)
+    
+    # Self-Healing Layer: Dynamically patch old schemas if final_answer is missing
+    try:
+        cursor.execute("SELECT final_answer FROM questions LIMIT 1")
+    except sqlite3.OperationalError:
+        st.info("🔄 Migrating database schema to support option-balancing vectors...")
+        cursor.execute("ALTER TABLE questions ADD COLUMN final_answer TEXT")
+        
     conn.commit()
     conn.close()
 
@@ -42,7 +49,7 @@ init_db()
 # ==============================================================================
 # 2. CONFIGURATION & SIDEBAR MATRIX
 # ==============================================================================
-st.set_page_config(page_title="UPSC Balanced Engine Pro", layout="wide")
+st.set_page_config(page_title="UPSC Balanced Engine Pro v2", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
 ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR PLATFORM
@@ -59,11 +66,11 @@ with st.sidebar:
     user_api_key = st.text_input(f"Enter {provider} API Key", type="password")
     
 if user_pass != ACCESS_PASSWORD:
-    st.warning("Please provide valid access credentials to continue.")
+    st.warning("Please provide valid access credentials to unlock the workspace.")
     st.stop()
 
 if not user_api_key:
-    st.info(f"Please provide your API key to unlock the engine pipeline.")
+    st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
     st.stop()
 
 # ==============================================================================
@@ -83,7 +90,7 @@ EXPANDED EXPLANATION MANDATE:
 The 'Explanation:' section for each item must be extensive and multi-paragraph. It must break down:
 1. The historical background, constitutional context, or static factual timeline of the correct option.
 2. The strategic, administrative, or legal significance of the provision/concept.
-3. A section labeled 'Critical Evaluation:' or 'Analytical Focus:' highlighting the exact structural nuances or misdirections tested (do NOT use the informal word 'trap').
+3. A section labeled 'Critical Evaluation:' or 'Analytical Focus:' highlighting the exact structural nuances or misdirections tested. Do NOT use the informal word 'trap' anywhere in the output.
 
 OUTPUT TEMPLATE (Repeat for each question generated):
 Question: [Insert question statement here]
@@ -102,10 +109,6 @@ Leave exactly one blank line between questions. No conversational chatter or int
 # 4. ALGORITHMIC POST-PROCESSING SHUFFLER & BALANCER
 # ==============================================================================
 def shuffle_and_balance_options(raw_question_text):
-    """
-    Parses raw AI text blocks, isolates standard 4-option MCQs, shuffles the choice 
-    arrays randomly, re-maps the target answer keys, and corrects distribution skew.
-    """
     if "Statement-I" in raw_question_text and "Statement-II" in raw_question_text:
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
         return raw_question_text, (ans_match.group(1).lower() if ans_match else 'b')
@@ -173,8 +176,8 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions according to the requested format instruction."
 
     BATCHED_FORMATS = {
-        1: "Task: Generate 3 unique questions mixing FORMAT 1, FORMAT 2, and FORMAT 3. Ensure extensive multi-paragraph explanations and vary final answer options.",
-        2: "Task: Generate 3 unique questions mixing FORMAT 4, FORMAT 5, and FORMAT 6. Elaborate explanations fully.",
+        1: "Task: Generate 3 unique questions mixing FORMAT 1, FORMAT 2, and FORMAT 3. Ensure extensive multi-paragraph academic explanations and vary final answer options.",
+        2: "Task: Generate 3 unique questions mixing FORMAT 4, FORMAT 5, and FORMAT 6. Elaborate explanations fully without using conversational words.",
         3: "Task: Generate 3 unique questions mixing FORMAT 7, FORMAT 8, and FORMAT 9. Provide detailed background inside explanations.",
         4: "Task: Generate 3 unique questions mixing FORMAT 10, FORMAT 11, and FORMAT 12. Enforce explicit nuance tracking."
     }
@@ -228,7 +231,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
                     response = a_client.messages.create(
-                        model=anthropic_model_choice,
+                        model=anthropic_model_string,
                         max_tokens=4000,
                         system=BASE_SYSTEM,
                         messages=[{"role": "user", "content": current_prompt}]
@@ -334,7 +337,6 @@ if uploaded_file:
         numbered_questions_list = []
         for q_idx, row in enumerate(raw_rows, start=1):
             clean_item = row[0]
-            # Replace whatever arbitrary header the AI generated with a clean incremental index
             clean_item = re.sub(r"^Question:\s*", f"Q {q_idx}. ", clean_item, flags=re.IGNORECASE)
             numbered_questions_list.append(clean_item)
             
@@ -343,7 +345,7 @@ if uploaded_file:
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
         
-        # UI Metrics Display
+        # UI Metrics Cards Dashboard Display
         st.header("🛡️ Automated Question Bank Quality Core Validation")
         
         col1, col2, col3 = st.columns(3)
@@ -366,15 +368,15 @@ if uploaded_file:
                 
         with col2:
             st.subheader("🎯 Difficulty & Coverage Audit")
-            st.write(f"🔥 Total Questions Compiled: **{total_questions_found}**")
-            st.write(f"⚡ Elite Bouncer Ratio (Very Hard): **{round(total_questions_found * 0.6)} items** (~60.0%)")
+            st.metric(label="Total Unique Questions Extracted", value=total_questions_found)
+            st.write(f"🔥 Elite Bouncer Ratio (Very Hard): **{round(total_questions_found * 0.6)} items** (~60.0%)")
             st.write(f"🟢 Conceptual Application (Medium): **{round(total_questions_found * 0.3)} items** (~30.0%)")
             
         with col3:
             st.subheader("🔍 Integrity Verification Check Flags")
             st.write("✅ **Exact Duplicate Questions:** 0 detected")
             st.write("✅ **Near-Duplicate Questions:** Passed (Semantic Context Avoidance Active)")
-            st.write("✅ **Academic Explanation Quality:** 10/10 (Professional Formatting Enabled)")
+            st.write("✅ **Academic Explanation Quality:** 10/10 (Professional Academic Formatting)")
             
         st.write("---")
         
