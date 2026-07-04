@@ -10,7 +10,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. SELF-HEALING DATABASE CACHE LAYER
+# 1. DATABASE CACHE ARCHITECTURE
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -30,15 +30,14 @@ def init_db():
         CREATE TABLE IF NOT EXISTS questions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             book_id INTEGER,
-            content TEXT
+            content TEXT,
+            final_answer TEXT
         )
     """)
     
-    # Self-Healing Layer: Dynamically patch old schemas if final_answer is missing
     try:
         cursor.execute("SELECT final_answer FROM questions LIMIT 1")
     except sqlite3.OperationalError:
-        st.info("🔄 Migrating database schema to support option-balancing vectors...")
         cursor.execute("ALTER TABLE questions ADD COLUMN final_answer TEXT")
         
     conn.commit()
@@ -49,10 +48,10 @@ init_db()
 # ==============================================================================
 # 2. CONFIGURATION & SIDEBAR MATRIX
 # ==============================================================================
-st.set_page_config(page_title="UPSC Balanced Engine Pro v2", layout="wide")
+st.set_page_config(page_title="UPSC High-Volume Factory", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR PLATFORM
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR SECURITY
 
 with st.sidebar:
     st.header("🔐 Access Setup")
@@ -70,7 +69,7 @@ if user_pass != ACCESS_PASSWORD:
     st.stop()
 
 if not user_api_key:
-    st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
+    st.info("Please provide your API key to unlock the engine pipeline.")
     st.stop()
 
 # ==============================================================================
@@ -78,31 +77,27 @@ if not user_api_key:
 # ==============================================================================
 MASTER_PROMPT = """
 You are a Senior UPSC Civil Services Examination Paper Setter updated through the latest 2026 analytical trends. 
-Your absolute mandate is to construct an exhaustive test pool from the provided text matching this exact difficulty distribution:
+Your absolute mandate is to construct an exhaustive test pool matching this exact difficulty distribution:
 - 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order logical deductions, complex exceptions, or practical functional deadlocks.
 - 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
 - 10% EASY: Core standard factual baseline validations.
 
-CRITICAL BALANCING DIRECTION:
-You must vary the correct answers. Do NOT default to making exactly two statements correct or making Assertion-Reason choices always (b) or (c). Actively vary your layouts so final answers are evenly distributed across A, B, C, and D.
+CRITICAL INSTRUCTIONS:
+1. Every item must be a strict 4-option MCQ labeled (a), (b), (c), and (d). True/False structures or bare statement lists are strictly FORBIDDEN.
+2. Grounding: Rely ONLY on facts explicitly mentioned in the source material text or core syllabus theme.
 
-EXPANDED EXPLANATION MANDATE:
-The 'Explanation:' section for each item must be extensive and multi-paragraph. It must break down:
-1. The historical background, constitutional context, or static factual timeline of the correct option.
-2. The strategic, administrative, or legal significance of the provision/concept.
-3. A section labeled 'Critical Evaluation:' or 'Analytical Focus:' highlighting the exact structural nuances or misdirections tested. Do NOT use the informal word 'trap' anywhere in the output.
-
-OUTPUT TEMPLATE (Repeat for each question generated):
+OUTPUT TEMPLATE (You must match this layout exactly):
 Question: [Insert question statement here]
 (a) [Option A]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
 Answer: [Correct letter only, e.g., (c)]
-Explanation: [Provide the comprehensive, multi-paragraph background and distractor analysis here]
+Explanation: [Provide a crisp 1-2 sentence factual validation mapping back to the source text]
+Analytical Focus: [Provide a detailed 2-3 sentence strategic breakdown explaining the layout's structural nuance, why specific distractors look attractive, and how an aspirant should eliminate options to find the correct choice]
 Topic: [Specific syllabus micro-topic tag]
 
-Leave exactly one blank line between questions. No conversational chatter or intro notes allowed.
+Do not output any introductory or concluding conversational padding or markdown commentary.
 """
 
 # ==============================================================================
@@ -116,11 +111,12 @@ def shuffle_and_balance_options(raw_question_text):
     try:
         q_match = re.search(r"Question:(.*?)(?=\(a\))", raw_question_text, re.DOTALL | re.IGNORECASE)
         a_match = re.search(r"\(a\)(.*?)(?=\(b\))", raw_question_text, re.DOTALL | re.IGNORECASE)
-        b_match = re.search(r"\(b\)(.*?)(?=\(c\))", raw_question_text, re.DOTALL | re.IGNORECASE)
+        b_match = re.search(r"\(b\)(.*?)(\c\))", raw_question_text, re.DOTALL | re.IGNORECASE)
         c_match = re.search(r"\(c\)(.*?)(?=\(d\))", raw_question_text, re.DOTALL | re.IGNORECASE)
         d_match = re.search(r"\(d\)(.*?)(?=Answer:)", raw_question_text, re.DOTALL | re.IGNORECASE)
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
-        exp_match = re.search(r"Explanation:(.*?)(?=Topic:|$)", raw_question_text, re.DOTALL | re.IGNORECASE)
+        exp_match = re.search(r"Explanation:(.*?)(?=Analytical Focus:|$)", raw_question_text, re.DOTALL | re.IGNORECASE)
+        ana_match = re.search(r"Analytical Focus:(.*?)(?=Topic:|$)", raw_question_text, re.DOTALL | re.IGNORECASE)
         top_match = re.search(r"Topic:(.*)", raw_question_text, re.IGNORECASE)
 
         if not (q_match and a_match and b_match and c_match and d_match and ans_match):
@@ -149,6 +145,7 @@ def shuffle_and_balance_options(raw_question_text):
                 break
 
         exp_text = exp_match.group(1).strip() if exp_match else ""
+        ana_text = ana_match.group(1).strip() if ana_match else ""
         top_text = top_match.group(1).strip() if top_match else "Syllabus Core"
 
         reconstructed = (
@@ -159,6 +156,7 @@ def shuffle_and_balance_options(raw_question_text):
             f"(d) {new_options['d']}\n"
             f"Answer: ({new_correct_letter})\n"
             f"Explanation: {exp_text}\n"
+            f"Analytical Focus: {ana_text}\n"
             f"Topic: {top_text}"
         )
         return reconstructed, new_correct_letter
@@ -167,7 +165,7 @@ def shuffle_and_balance_options(raw_question_text):
         return raw_question_text, 'b'
 
 # ==============================================================================
-# 5. CORE EXHAUSTIVE PIPELINE GENERATION LOOP
+# 5. STRICT 12-ISOLATED FORMAT PASS PIPELINE GENERATION ENGINE
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
     total_chunks = len(chunks)
@@ -175,18 +173,26 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     
     BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions according to the requested format instruction."
 
-    BATCHED_FORMATS = {
-        1: "Task: Generate 3 unique questions mixing FORMAT 1, FORMAT 2, and FORMAT 3. Ensure extensive multi-paragraph academic explanations and vary final answer options.",
-        2: "Task: Generate 3 unique questions mixing FORMAT 4, FORMAT 5, and FORMAT 6. Elaborate explanations fully without using conversational words.",
-        3: "Task: Generate 3 unique questions mixing FORMAT 7, FORMAT 8, and FORMAT 9. Provide detailed background inside explanations.",
-        4: "Task: Generate 3 unique questions mixing FORMAT 10, FORMAT 11, and FORMAT 12. Enforce explicit nuance tracking."
+    FORMAT_BLUEPRINTS = {
+        1: "You MUST generate exactly 1 question in FORMAT 1: DIRECT / STANDALONE question style (Variant 1A, 1B, 1C, or 1D). Ensure distractors are highly plausible.",
+        2: "You MUST generate exactly 1 question in FORMAT 2: MULTI-STATEMENT style. Use variants 2A or 2B (Which statement is/are correct/incorrect). Never make all statements correct or all incorrect.",
+        3: "You MUST generate exactly 1 question in FORMAT 2C: MULTI-STATEMENT COUNTABLE style. Use the exact layout: 'How many of the statements given above are correct? (a) Only one (b) Only two (c) All three (d) None'. Avoid 'All three' as the correct answer.",
+        4: "You MUST generate exactly 1 question in FORMAT 3: ASSERTION-REASON causal logic style. Follow this layout structure EXACTLY:\nQuestion: Statement-I: [Factual claim]. Statement-II: [Causal explanation why Statement-I is true]. Which one of the following is correct?\n(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I\n(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I\n(c) Statement-I is correct but Statement-II is incorrect\n(d) Statement-I is incorrect but Statement-II is correct",
+        5: "You MUST generate exactly 1 question in FORMAT 4: TWO-COLUMN MATCH THE FOLLOWING style. Match List-I with List-II using standard option combinations (e.g., A-1, B-2, C-3, D-4).",
+        6: "You MUST generate exactly 1 question in FORMAT 5: THREE-COLUMN MATCH THE FOLLOWING style. Structure exactly as: Column A (Term) | Column B (Provisions) | Column C (Context). Question: 'Which of the following combinations is correct? (a) A-1-I, B-2-II...'.",
+        7: "You MUST generate exactly 1 question in FORMAT 6: CHRONOLOGICAL SEQUENCE style. Arrange 4 historical events, legal acts, or procedural steps in their correct sequence.",
+        8: "You MUST generate exactly 1 question in FORMAT 7: APPLIED / CURRENT AFFAIRS LINKED style. Anchor the stem in a real policy development or named judgment from the text material.",
+        9: "You MUST generate exactly 1 question in FORMAT 8: SCENARIO-BASED / SITUATIONAL JUDGMENT style. Place a complex administrative deadlock or executive-legal paradox in the stem and evaluate constitutional validities.",
+        10: "You MUST generate exactly 1 question in FORMAT 9: SPATIAL CONCEPTUAL / REGIONAL BOUNDARY style testing text-based geographic jurisdictions or regional interactions.",
+        11: "You MUST generate exactly 1 question in FORMAT 11: PASSAGE-BASED COMPREHENSION inference style. Provide a dense 3-8 line textual excerpt from the text and ask which inferences (1, 2, 3) logically follow.",
+        12: "You MUST generate exactly 1 question in FORMAT 12: 'WHICH IS LEAST/MOST LIKELY' ANALYTICAL style evaluating relative significance using terms like 'MOST LIKELY consequence' or 'GREATEST IMPACT'."
     }
 
     for index, chunk_text in enumerate(chunks):
         chunk_context = f"THEME: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"SOURCE CONTENT:\n{chunk_text}"
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
-        for batch_id in range(1, 5):
+        for format_id in range(1, 13):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id DESC LIMIT 3", (book_id,))
@@ -200,12 +206,12 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     history_hints.append(found_topics[-1])
             compiled_hints = ", ".join(set(history_hints)) if history_hints else "None"
 
-            target_batch_rule = BATCHED_FORMATS.get(batch_id)
+            target_format_rule = FORMAT_BLUEPRINTS.get(format_id)
             
             current_prompt = (
                 f"{MASTER_PROMPT}\n\n"
                 f"{chunk_context}\n\n"
-                f"CURRENT EXECUTION REQUIREMENT FOR THIS BATCH:\n{target_batch_rule}\n\n"
+                f"CURRENT STRUCTURAL SPECIFICATION REGIME:\n{target_format_rule}\n\n"
                 f"ANTI-REPETITION CONSTRAINT MANDATE:\nDo NOT target or reuse these sub-topics/concepts: [{compiled_hints}]\n\n"
                 f"Output your questions directly now."
             )
@@ -239,7 +245,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     raw_text = response.content[0].text
 
             except Exception as general_err:
-                st.error(f"❌ GENERAL ENGINE EXCEPTION at Batch {batch_id}: {str(general_err)}")
+                st.error(f"❌ GENERAL ENGINE EXCEPTION at Format {format_id}: {str(general_err)}")
                 break
 
             if len(raw_text.strip()) > 50 and "SEGMENT_EXHAUSTED" not in raw_text:
@@ -256,7 +262,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         )
                 conn.commit()
                 conn.close()
-                time.sleep(1)
+                time.sleep(0.5)
         
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -309,9 +315,10 @@ if uploaded_file:
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                chunk_size = 8000
+                # OPTIMIZED STEP: Dropped chunk boundaries to 5000 to maximize volume safely
+                chunk_size = 5000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
-                st.info(f"Parsed {len(full_text)} characters into {len(chunks)} chunks.")
+                st.info(f"Parsed {len(full_text)} characters into {len(chunks)} high-density segments.")
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
@@ -333,7 +340,6 @@ if uploaded_file:
         raw_rows = cur_live.fetchall()
         conn_live.close()
         
-        # Clean sequential numbering pipeline implementation
         numbered_questions_list = []
         for q_idx, row in enumerate(raw_rows, start=1):
             clean_item = row[0]
@@ -345,7 +351,6 @@ if uploaded_file:
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
         
-        # UI Metrics Cards Dashboard Display
         st.header("🛡️ Automated Question Bank Quality Core Validation")
         
         col1, col2, col3 = st.columns(3)
@@ -374,6 +379,7 @@ if uploaded_file:
             
         with col3:
             st.subheader("🔍 Integrity Verification Check Flags")
+            st.write("Keep track of structural integrity:")
             st.write("✅ **Exact Duplicate Questions:** 0 detected")
             st.write("✅ **Near-Duplicate Questions:** Passed (Semantic Context Avoidance Active)")
             st.write("✅ **Academic Explanation Quality:** 10/10 (Professional Academic Formatting)")
