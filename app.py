@@ -254,7 +254,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     response = o_client.chat.completions.create(
                         model=target_model_string,
                         messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
-                        temperature=0.3
+                        temperature=1
                     )
                     raw_text = response.choices[0].message.content
                 elif provider == "Gemini (Google)":
