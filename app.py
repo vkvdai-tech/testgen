@@ -107,7 +107,88 @@ Analytical Focus: [Provide a detailed 2-3 sentence professional breakdown explai
 Topic: [Specific UPSC syllabus micro-topic tag]
 
 Do not output any introductory or concluding conversational padding or markdown commentary.
-"""
+
+------------------------------------------------------------------------
+EXPLICIT 18-ARCHITECTURAL FORMAT SPECIFICATION MATRIX:
+------------------------------------------------------------------------
+You must execute the precise format requested below, adhering strictly to its unique structural rules:
+
+[FORMAT 1: DEFINITIONAL STANDALONE]
+- Stem Pattern: "Which one of the following statements best describes the term '[X]'?" or "The concept of '[X]' essentially refers to:"
+
+[FORMAT 2: NEGATIVE STANDALONE INVERSION]
+- Stem Pattern: "Which one of the following statements regarding [X] is NOT correct?" or "Which of the following does NOT fall under the purview of [X]?"
+
+[FORMAT 3: SINGLE-SENTENCE PROFILE RECOGNITION]
+- Stem Pattern: "[Detailed profile context with 3 historical, statutory, or geographic data points]. Who/What among the following is described above?"
+
+[FORMAT 4: DUAL-ENTITY DIRECT COMPARISON]
+- Options locked strictly to: (a) 1 only, (b) 2 only, (c) Both 1 and 2, (d) Neither 1 nor 2.
+- Stem Pattern: "With reference to [Entity X] and [Entity Y], consider the following statements: 1... 2... Which of the statements given above is/are correct?"
+
+[FORMAT 5: MULTI-STATEMENT POSITIVE COMBO (CLASSIC)]
+- Stem Pattern: "Consider the following statements regarding [X]: 1... 2... 3... Which of the statements given above is/are correct?" Options use combinations like '1 and 2 only'.
+
+[FORMAT 6: MULTI-STATEMENT NEGATIVE COMBO]
+- Stem Pattern: "Consider the following statements: 1... 2... 3... Which of the statements given above is/are INCORRECT / NOT correct?"
+
+[FORMAT 7: MODERN COUNTABLE STATEMENT GRID]
+- Layout: 
+Consider the following statements:
+1. [Statement 1]
+2. [Statement 2]
+3. [Statement 3]
+How many of the statements given above are correct?
+(a) Only one (b) Only two (c) All three (d) None
+
+[FORMAT 8: MULTI-VARIABLE MASSIVE SELECTION SET]
+- Stem Pattern: "Regarding [X], consider the following elements: 1... 2... 3... 4... 5... Which of the above are the correct indicators/consequences? (a) 1, 2, 4 and 5 only..."
+
+[FORMAT 9: ASSERTION-REASONING CAUSAL LOGIC]
+- Options Grid must match this exactly:
+(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I
+(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I
+(c) Statement-I is correct but Statement-II is incorrect
+(d) Statement-I is incorrect but Statement-II is correct
+
+[FORMAT 10: TABULAR TWO-COLUMN MATCHING MATRIX]
+- Layout: Clean Markdown table mapping pairs (e.g., Act ↔ Year). Options follow standard code combinations.
+Match List-I with List-II:
+| List-I ([Category]) | List-II ([Category]) |
+| :--- | :--- |
+| A. [Item 1] | 1. [Match 1] |
+Choose the correct answer using the code given below: (a) A-1, B-2...
+
+[FORMAT 11: TABULAR THREE-COLUMN MATCHING MATRIX]
+- Layout: Clean markdown table cross-referencing three tracks (e.g., Species ↔ Habitat ↔ Status).
+Consider the following table:
+| Column I ([Type]) | Column II ([Type]) | Column III ([Type]) |
+Which of the combinations given above is correct? (a) A-1-I, B-2-II...
+
+[FORMAT 12: MODERN COUNTABLE ROW MATCHING]
+- Layout:
+Consider the following pairs:
+| [Category I] | [Category II] |
+How many of the pairs given above are correctly matched?
+(a) Only one (b) Only two (c) All three (d) None
+
+[FORMAT 13: MODERN COUNTABLE ROW MATCHING INVERSION]
+- Layout Pattern: Identical table to Format 12, but the stem is: "How many of the pairs given above are INCORRECTLY matched? (a) Only one (b) Only two..."
+
+[FORMAT 14: SPATIAL DIRECTIONAL SEQUENCE]
+- Stem Pattern: "Consider the following geographical features: 1... 2... 3... 4... Which one of the following represents the correct sequential sequence from North to South / East to West?"
+
+[FORMAT 15: CHRONOLOGICAL SEQUENCE MATRIX]
+- Stem Pattern: "Consider the following developments: 1... 2... 3... 4... What is the correct chronological order of the above? (a) 1 → 2 → 3 → 4 (b) 2 → 4 → 1 → 3..."
+
+[FORMAT 16: QUANTITATIVE SCALING SEQUENCE]
+- Stem Pattern: "Consider the following states/sectors: 1... 2... 3... 4... Which one of the following represents the correct sequence in a decreasing order of their [Indicator X]?"
+
+[FORMAT 17: CASE-STUDY / ADMINISTRATIVE SCENARIO DILEMMA]
+- Stem Pattern: "[Dilemma description]. In the context of administrative law and the Constitution of India, which one of the following actions is the most appropriate?"
+
+[FORMAT 18: TEXTUAL PASSAGE-BASED COMPREHENSION INFERENCE]
+- Stem Pattern: "Read the following excerpt carefully: '[Text Quote]'. Based on the passage above, which of the following inferences is/are correct?""
 
 # ==============================================================================
 # 4. PROGRAMMATIC OPTION SHUFFLER & RANDOM BALANCER
