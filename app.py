@@ -46,23 +46,23 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. CLIENT WORKSPACE CONFIGURATION
+# 2. CLIENT WORKSPACE CONFIGURATION (With Cost-Efficient Fast Models)
 # ==============================================================================
-st.set_page_config(page_title="UPSC 18-Format Engine Pro", layout="wide")
+st.set_page_config(page_title="UPSC 18-Format Master Engine v3", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR SECURITY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR PLATFORM SECURITY
 
 with st.sidebar:
     st.header("🔐 Access Setup")
     user_pass = st.text_input("Enter App Access Password", type="password")
-    provider = st.selectbox("Select AI Provider", ["OpenAI (ChatGPT)", "Gemini (Google)", "Anthropic (Claude)"])
+    provider = st.selectbox("Select AI Provider", ["Gemini (Google)", "OpenAI (ChatGPT)", "Anthropic (Claude)"])
     
     model_choice_string = ""
-    if provider == "OpenAI (ChatGPT)":
-        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-5.4-mini", "gpt-5.5"])
-    elif provider == "Gemini (Google)":
+    if provider == "Gemini (Google)":
         model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
+    elif provider == "OpenAI (ChatGPT)":
+        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5"])
     elif provider == "Anthropic (Claude)":
         model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
         
@@ -77,7 +77,7 @@ if not user_api_key:
     st.stop()
 
 # ==============================================================================
-# 3. HIGH-DIFFICULTY 2018-2026 PATTERN-MATCHED SYSTEM PROMPT
+# 3. UPSC 2018-2026 PATTERN-MATCHED ELITE SYSTEM PROMPT
 # ==============================================================================
 MASTER_PROMPT = """
 You are an expert Senior UPSC Civil Services Examination Paper Setter matching the exact conceptual trends, linguistic rigor, and structural layouts of the official 2018–2026 GS Paper I examination booklets. Your sole mandate is to analyze the source text provided and construct questions that match this strict difficulty distribution:
@@ -85,73 +85,81 @@ You are an expert Senior UPSC Civil Services Examination Paper Setter matching t
 - 30% MEDIUM: Tricky conceptual application questions with highly attractive, recognizable distractors.
 - 10% EASY: Core standard baseline factual validations.
 
-CRITICAL MOCK PAPER BALANCING RULES:
-1. For Multi-Statement Countable questions, vary the underlying conditions so that 'Only one', 'Only two', 'All three', and 'None' are evenly distributed as correct answer keys across your runs.
-2. For Dual-Statement 'Both/Neither' questions, do not default to positive validation. Systematically make 'Neither 1 nor 2' the correct answer to break standard guess patterns.
-3. For Two-Column and Three-Column Match Matrices, the information must be rendered cleanly in a formatted Markdown Table (| Column 1 | Column 2 |) to simulate official examination layouts.
-4. Language Directive: Do NOT use casual or informal words like 'trap', 'trick', 'bait', or 'catch' anywhere in the output text. Use professional academic terminology.
+CRITICAL IMMERSION & CLARITY MANDATES:
+1. ABSOLUTE SYSTEM IMMERSION: Never use phrases like 'the source text', 'the provided passage', 'the text states', or 'according to the author' in any question or explanation block. Write explanations as absolute, direct historical, administrative, or constitutional facts.
+2. NO TEXTBOOK META-REFERENCES: Never reference textbook internal metadata, table numbers, page numbers, or chart markers (e.g., do NOT mention 'Table 2.5' or 'Table 2.6'). Instead, test the actual historical information or data directly as a core fact.
+3. PUNCTUATION INTEGRITY: Every question statement MUST end with complete punctuation and grammatical closure (e.g., ensuring negative stems end properly with 'is NOT correct?' or 'is INCORRECT?'). Never cut off sentences abruptly before the choices.
+4. MOCK PAPER BALANCING RULES: Alternating your multi-statement answer variables so 'Only one', 'Only two', 'All three', and 'None' are evenly balanced across your items.
 
 ⚠️ CRITICAL SYSTEMIC EXIT VECTOR:
-Evaluate the provided source text chunk carefully against the specific format requested. If the source text lacks the logical data required to cleanly build that specific format variant (e.g., trying to generate a spatial directional map question from text that contains no geography, or a chronological timeline from text with no historical milestones), you MUST output exactly the word: FORMAT_NOT_APPLICABLE. Do not invent facts, do not force the layout, and do not provide any explanation if this occurs.
+Evaluate the provided source text chunk carefully against the specific format requested. If the source text lacks the logical data required to cleanly build that specific format variant, you MUST output exactly the word: FORMAT_NOT_APPLICABLE. Do not invent facts and do not provide any markdown chatter.
 
 OUTPUT TEMPLATE (You must match this layout exactly if the format is applicable):
-Question: [Insert cleanly constructed question statement here matching the exact requested format pattern]
+Question: [Insert cleanly constructed question statement here ending with proper punctuation closure]
 (a) [Option A]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
 Answer: [Correct letter only, e.g., (c)]
-Explanation: [Provide a crisp 1-2 sentence factual validation mapping back to the explicit source text. Keep it concise to optimize token footprints.]
-Analytical Focus: [Provide a detailed 2-3 sentence professional breakdown explaining the structural nuance of the layout, why specific distractors look attractive, and the precise elimination logic an aspirant must deploy to isolate the correct option.]
+Explanation: [Provide a crisp 1-2 sentence direct factual validation statement. Completely omit any mentions of 'the source' or 'the text'.]
+Analytical Focus: [Provide a detailed 2-3 sentence strategic breakdown explaining the layout's structural nuance and options elimination logic.]
 Topic: [Specific UPSC syllabus micro-topic tag]
 
-Do not output any introductory or concluding conversational padding or markdown commentary.
+Do not output any introductory or concluding markdown commentary.
 """
 
 # ==============================================================================
-# 4. ROBUST AUTOMATED OPTION SHUFFLER & SHIELDED RESCRAMBLER
+# 4. DETERMINISTIC ROBUST OPTION SHUFFLER & BALANCER
 # ==============================================================================
 def shuffle_and_balance_options(raw_question_text):
-    # Guard Layer: Do not touch custom layouts like Assertion-Reasoning fixed-option tables
+    # Auto-Repair: Protect question statements that were cut off right before the option list
+    if "is NOT" in raw_question_text and "is NOT correct?" not in raw_question_text and "is NOT correct" not in raw_question_text:
+        raw_question_text = raw_question_text.replace("is NOT", "is NOT correct?")
+    if "is INCORRECT" in raw_question_text and "is INCORRECT?" not in raw_question_text:
+        raw_question_text = raw_question_text.replace("is INCORRECT", "is INCORRECT?")
+
+    # Guard Layer: Do not touch custom layouts like Assertion-Reasoning fixed-option grids
     if "Statement-I" in raw_question_text and "Statement-II" in raw_question_text:
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
         return raw_question_text, (ans_match.group(1).lower() if ans_match else 'b')
 
     try:
-        # Extract components safely using defensive, reliable patterns
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
         if not ans_match:
             return raw_question_text, 'b'
         
         original_correct_letter = ans_match.group(1).lower()
 
-        # Isolate chunks via lookahead bounds
-        q_match = re.search(r"Question:(.*?)(?=\(a\))", raw_question_text, re.DOTALL | re.IGNORECASE)
-        a_match = re.search(r"\(a\)(.*?)(?=\(b\))", raw_question_text, re.DOTALL | re.IGNORECASE)
-        b_match = re.search(r"\(b\)(.*?)(?=\(c\))", raw_question_text, re.DOTALL | re.IGNORECASE)
-        c_match = re.search(r"\(c\)(.*?)(?=\(d\))", raw_question_text, re.DOTALL | re.IGNORECASE)
-        d_match = re.search(r"\(d\)(.*?)(?=Answer:)", raw_question_text, re.DOTALL | re.IGNORECASE)
-        
-        exp_match = re.search(r"Explanation:(.*?)(?=Analytical Focus:|$)", raw_question_text, re.DOTALL | re.IGNORECASE)
-        ana_match = re.search(r"Analytical Focus:(.*?)(?=Topic:|$)", raw_question_text, re.DOTALL | re.IGNORECASE)
-        top_match = re.search(r"Topic:(.*)", raw_question_text, re.IGNORECASE)
-
-        # Fallback Check if the regex blocks failed due to unexpected spaces
-        if not (q_match and a_match and b_match and c_match and d_match):
+        # Isolate text elements using deterministic splitting arrays to avoid regex overlap failures
+        q_split = re.split(r"\(a\)", raw_question_text, flags=re.IGNORECASE)
+        if len(q_split) < 2:
             return raw_question_text, original_correct_letter
+        q_text = q_split[0].replace("Question:", "").strip()
 
-        q_text = q_match.group(1).strip()
-        options = {
-            'a': a_match.group(1).strip(),
-            'b': b_match.group(1).strip(),
-            'c': c_match.group(1).strip(),
-            'd': d_match.group(1).strip()
-        }
-        
+        remainder = q_split[1]
+        b_split = re.split(r"\(b\)", remainder, flags=re.IGNORECASE)
+        a_text = b_split[0].strip()
+
+        c_split = re.split(r"\(c\)", b_split[1], flags=re.IGNORECASE)
+        b_text = c_split[0].strip()
+
+        d_split = re.split(r"\(d\)", c_split[1], flags=re.IGNORECASE)
+        c_text = d_split[0].strip()
+
+        ans_split = re.split(r"Answer:", d_split[1], flags=re.IGNORECASE)
+        d_text = ans_split[0].strip()
+
+        # Isolate explanations and strategic analysis fields cleanly
+        exp_part = ans_split[1]
+        exp_match = re.search(r"Explanation:(.*?)(?=Analytical Focus:|$)", exp_part, re.DOTALL | re.IGNORECASE)
+        ana_match = re.search(r"Analytical Focus:(.*?)(?=Topic:|$)", exp_part, re.DOTALL | re.IGNORECASE)
+        top_match = re.search(r"Topic:(.*)", exp_part, re.IGNORECASE)
+
+        options = {'a': a_text, 'b': b_text, 'c': c_text, 'd': d_text}
         correct_option_text = options[original_correct_letter]
 
-        # Shuffle options arrays safely
-        option_values = list(options.values())
+        # Scramble option arrays programmatically
+        option_values = [a_text, b_text, c_text, d_text]
         random.shuffle(option_values)
 
         new_options = {
@@ -161,7 +169,7 @@ def shuffle_and_balance_options(raw_question_text):
             'd': option_values[3]
         }
         
-        # Track the new position of the correct option
+        # Recalculate where the target answer key landed
         new_correct_letter = 'b'
         for letter, val in new_options.items():
             if val == correct_option_text:
@@ -169,8 +177,11 @@ def shuffle_and_balance_options(raw_question_text):
                 break
 
         exp_text = exp_match.group(1).strip() if exp_match else "Factual baseline confirmed."
-        ana_text = ana_match.group(1).strip() if ana_match else "Conceptual evaluation mode active."
-        top_text = top_match.group(1).strip() if top_match else "General Syllabus"
+        # Clean immersion-breaking vocabulary out of explanations dynamically if generated
+        exp_text = re.sub(r"(?i)the source text states that|the source states that|the passage states that|the passage clarifies that", "Constitutional framework dictates that", exp_text)
+        
+        ana_text = ana_match.group(1).strip() if ana_match else "Conceptual evaluation metrics active."
+        top_text = top_match.group(1).strip() if top_match else "General Syllabus Core"
 
         reconstructed = (
             f"Question: {q_text}\n"
@@ -186,7 +197,6 @@ def shuffle_and_balance_options(raw_question_text):
         return reconstructed, new_correct_letter
 
     except Exception:
-        # Absolute safety loop fallback vector
         return raw_question_text, 'b'
 
 # ==============================================================================
@@ -200,18 +210,18 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
 
     FORMAT_BLUEPRINTS = {
         1: "Format Rule: Generate exactly 1 question in FORMAT 1: DEFINITIONAL STANDALONE style tracking an exact operational legal boundary, economic doctrine, or constitutional term.",
-        2: "Format Rule: Generate exactly 1 question in FORMAT 2: NEGATIVE STANDALONE INVERSION style ending in a hard negative indicator ('NOT' / 'EXCEPT').",
+        2: "Format Rule: Generate exactly 1 question in FORMAT 2: NEGATIVE STANDALONE INVERSION style ending completely with the text indicator 'is NOT correct?'.",
         3: "Format Rule: Generate exactly 1 question in FORMAT 3: SINGLE-SENTENCE PROFILE RECOGNITION style summarizing a specific historical persona or institutional entity.",
         4: "Format Rule: Generate exactly 1 question in FORMAT 4: DUAL-ENTITY DIRECT COMPARISON style. Options must be locked to: (a) 1 only, (b) 2 only, (c) Both 1 and 2, (d) Neither 1 nor 2. Target final correct answer code to favor choice (d).",
         5: "Format Rule: Generate exactly 1 question in FORMAT 5: MULTI-STATEMENT POSITIVE COMBO (CLASSIC) style with 3 or 4 statements and overlapping combinations choices.",
-        6: "Format Rule: Generate exactly 1 question in FORMAT 6: MULTI-STATEMENT NEGATIVE COMBO style explicitly targeting INCORRECT / NOT correct statement alignments.",
+        6: "Format Rule: Generate exactly 1 question in FORMAT 6: MULTI-STATEMENT NEGATIVE COMBO style explicitly ending with the text indicator 'is/are INCORRECT / NOT correct?'.",
         7: "Format Rule: Generate exactly 1 question in FORMAT 7: MODERN COUNTABLE STATEMENT GRID style. Options must be strictly fixed to: (a) Only one, (b) Only two, (c) All three, (d) None.",
         8: "Format Rule: Generate exactly 1 question in FORMAT 8: MULTI-VARIABLE MASSIVE SELECTION SET style listing an extensive list array of 5 to 7 specific indicators.",
         9: "Format Rule: Generate exactly 1 question in FORMAT 9: ASSERTION-REASONING CAUSAL LOGIC style with Statement-I and Statement-II configurations.",
         10: "Format Rule: Generate exactly 1 question in FORMAT 10: TABULAR TWO-COLUMN MATCHING MATRIX style. Force structural components cleanly inside a formatted Markdown table layout.",
         11: "Format Rule: Generate exactly 1 question in FORMAT 11: TABULAR THREE-COLUMN MATCHING MATRIX style. Construct a complex multi-variable Markdown grid cross-referencing three elements.",
         12: "Format Rule: Generate exactly 1 question in FORMAT 12: MODERN COUNTABLE ROW MATCHING style combining a two-column Markdown table with countable options choices.",
-        13: "Format Rule: Generate exactly 1 question in FORMAT 13: MODERN COUNTABLE ROW MATCHING INVERSION style searching exclusively for INCORRECTLY matched row entries.",
+        13: "Format Rule: Generate exactly 1 question in FORMAT 13: MODERN COUNTABLE ROW MATCHING INVERSION style searching exclusively for INCORRECTLY matched row entries within a Markdown table.",
         14: "Format Rule: Generate exactly 1 question in FORMAT 14: SPATIAL DIRECTIONAL SEQUENCE style re-arranging geographic properties sequentially from North to South / East to West.",
         15: "Format Rule: Generate exactly 1 question in FORMAT 15: CHRONOLOGICAL SEQUENCE MATRIX style arranging historical developments using sequential chain arrow options.",
         16: "Format Rule: Generate exactly 1 question in FORMAT 16: QUANTITATIVE SCALING SEQUENCE style ordering data gradients in a strict increasing or decreasing sequence map.",
@@ -254,7 +264,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     response = o_client.chat.completions.create(
                         model=target_model_string,
                         messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
-                        temperature=1
+                        temperature=0.4
                     )
                     raw_text = response.choices[0].message.content
                 elif provider == "Gemini (Google)":
@@ -293,7 +303,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         )
                 conn.commit()
                 conn.close()
-                time.sleep(0.4)
+                time.sleep(0.3)
         
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -381,6 +391,7 @@ if uploaded_file:
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
         
+        # UI Metrics Cards Dashboard Display
         st.header("🛡️ Automated Question Bank Quality Core Validation")
         
         col1, col2, col3 = st.columns(3)
@@ -409,6 +420,7 @@ if uploaded_file:
             
         with col3:
             st.subheader("🔍 Integrity Verification Check Flags")
+            st.write("Keep track of structural integrity:")
             st.write("✅ **Exact Duplicate Questions:** 0 detected")
             st.write("✅ **Near-Duplicate Questions:** Passed (Semantic Context Avoidance Active)")
             st.write("✅ **Academic Explanation Quality:** 10/10 (Professional Academic Formatting)")
