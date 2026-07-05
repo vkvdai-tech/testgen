@@ -35,7 +35,7 @@ def init_db():
         )
     """)
     
-    # Self-Healing: Check schema boundaries to prevent field operational exceptions
+    # Self-Healing Layer: Patches database dynamically if final_answer field is absent
     try:
         cursor.execute("SELECT final_answer FROM questions LIMIT 1")
     except sqlite3.OperationalError:
@@ -47,7 +47,7 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. CLIENT WORKSPACE WORKSPACE CONFIGURATION
+# 2. CLIENT WORKSPACE CONFIGURATION (With Next-Gen Models)
 # ==============================================================================
 st.set_page_config(page_title="UPSC 18-Format Blueprint Engine Pro", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
@@ -64,7 +64,7 @@ with st.sidebar:
     if provider == "OpenAI (ChatGPT)":
         model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-5.4", "gpt-5.5"])
     elif provider == "Gemini (Google)":
-        model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-3"])
+        model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-pro", "gemini-3"])
     elif provider == "Anthropic (Claude)":
         model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
         
@@ -77,6 +77,7 @@ if user_pass != ACCESS_PASSWORD:
 if not user_api_key:
     st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
     st.stop()
+
 # ==============================================================================
 # 3. HIGH-DIFFICULTY 2018-2026 PATTERN-MATCHED SYSTEM PROMPT
 # ==============================================================================
@@ -107,94 +108,12 @@ Analytical Focus: [Provide a detailed 2-3 sentence professional breakdown explai
 Topic: [Specific UPSC syllabus micro-topic tag]
 
 Do not output any introductory or concluding conversational padding or markdown commentary.
-
-------------------------------------------------------------------------
-EXPLICIT 18-ARCHITECTURAL FORMAT SPECIFICATION MATRIX:
-------------------------------------------------------------------------
-You must execute the precise format requested below, adhering strictly to its unique structural rules:
-
-[FORMAT 1: DEFINITIONAL STANDALONE]
-- Stem Pattern: "Which one of the following statements best describes the term '[X]'?" or "The concept of '[X]' essentially refers to:"
-
-[FORMAT 2: NEGATIVE STANDALONE INVERSION]
-- Stem Pattern: "Which one of the following statements regarding [X] is NOT correct?" or "Which of the following does NOT fall under the purview of [X]?"
-
-[FORMAT 3: SINGLE-SENTENCE PROFILE RECOGNITION]
-- Stem Pattern: "[Detailed profile context with 3 historical, statutory, or geographic data points]. Who/What among the following is described above?"
-
-[FORMAT 4: DUAL-ENTITY DIRECT COMPARISON]
-- Options locked strictly to: (a) 1 only, (b) 2 only, (c) Both 1 and 2, (d) Neither 1 nor 2.
-- Stem Pattern: "With reference to [Entity X] and [Entity Y], consider the following statements: 1... 2... Which of the statements given above is/are correct?"
-
-[FORMAT 5: MULTI-STATEMENT POSITIVE COMBO (CLASSIC)]
-- Stem Pattern: "Consider the following statements regarding [X]: 1... 2... 3... Which of the statements given above is/are correct?" Options use combinations like '1 and 2 only'.
-
-[FORMAT 6: MULTI-STATEMENT NEGATIVE COMBO]
-- Stem Pattern: "Consider the following statements: 1... 2... 3... Which of the statements given above is/are INCORRECT / NOT correct?"
-
-[FORMAT 7: MODERN COUNTABLE STATEMENT GRID]
-- Layout: 
-Consider the following statements:
-1. [Statement 1]
-2. [Statement 2]
-3. [Statement 3]
-How many of the statements given above are correct?
-(a) Only one (b) Only two (c) All three (d) None
-
-[FORMAT 8: MULTI-VARIABLE MASSIVE SELECTION SET]
-- Stem Pattern: "Regarding [X], consider the following elements: 1... 2... 3... 4... 5... Which of the above are the correct indicators/consequences? (a) 1, 2, 4 and 5 only..."
-
-[FORMAT 9: ASSERTION-REASONING CAUSAL LOGIC]
-- Options Grid must match this exactly:
-(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I
-(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I
-(c) Statement-I is correct but Statement-II is incorrect
-(d) Statement-I is incorrect but Statement-II is correct
-
-[FORMAT 10: TABULAR TWO-COLUMN MATCHING MATRIX]
-- Layout: Clean Markdown table mapping pairs (e.g., Act ↔ Year). Options follow standard code combinations.
-Match List-I with List-II:
-| List-I ([Category]) | List-II ([Category]) |
-| :--- | :--- |
-| A. [Item 1] | 1. [Match 1] |
-Choose the correct answer using the code given below: (a) A-1, B-2...
-
-[FORMAT 11: TABULAR THREE-COLUMN MATCHING MATRIX]
-- Layout: Clean markdown table cross-referencing three tracks (e.g., Species ↔ Habitat ↔ Status).
-Consider the following table:
-| Column I ([Type]) | Column II ([Type]) | Column III ([Type]) |
-Which of the combinations given above is correct? (a) A-1-I, B-2-II...
-
-[FORMAT 12: MODERN COUNTABLE ROW MATCHING]
-- Layout:
-Consider the following pairs:
-| [Category I] | [Category II] |
-How many of the pairs given above are correctly matched?
-(a) Only one (b) Only two (c) All three (d) None
-
-[FORMAT 13: MODERN COUNTABLE ROW MATCHING INVERSION]
-- Layout Pattern: Identical table to Format 12, but the stem is: "How many of the pairs given above are INCORRECTLY matched? (a) Only one (b) Only two..."
-
-[FORMAT 14: SPATIAL DIRECTIONAL SEQUENCE]
-- Stem Pattern: "Consider the following geographical features: 1... 2... 3... 4... Which one of the following represents the correct sequential sequence from North to South / East to West?"
-
-[FORMAT 15: CHRONOLOGICAL SEQUENCE MATRIX]
-- Stem Pattern: "Consider the following developments: 1... 2... 3... 4... What is the correct chronological order of the above? (a) 1 → 2 → 3 → 4 (b) 2 → 4 → 1 → 3..."
-
-[FORMAT 16: QUANTITATIVE SCALING SEQUENCE]
-- Stem Pattern: "Consider the following states/sectors: 1... 2... 3... 4... Which one of the following represents the correct sequence in a decreasing order of their [Indicator X]?"
-
-[FORMAT 17: CASE-STUDY / ADMINISTRATIVE SCENARIO DILEMMA]
-- Stem Pattern: "[Dilemma description]. In the context of administrative law and the Constitution of India, which one of the following actions is the most appropriate?"
-
-[FORMAT 18: TEXTUAL PASSAGE-BASED COMPREHENSION INFERENCE]
-- Stem Pattern: "Read the following excerpt carefully: '[Text Quote]'. Based on the passage above, which of the following inferences is/are correct?""
+"""
 
 # ==============================================================================
 # 4. PROGRAMMATIC OPTION SHUFFLER & RANDOM BALANCER
 # ==============================================================================
 def shuffle_and_balance_options(raw_question_text):
-    # Guard Layer: Do not corrupt fixed options matrices like Assertion-Reasoning structural codes
     if "Statement-I" in raw_question_text and "Statement-II" in raw_question_text:
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
         return raw_question_text, (ans_match.group(1).lower() if ans_match else 'b')
@@ -258,7 +177,7 @@ def shuffle_and_balance_options(raw_question_text):
 # ==============================================================================
 # 5. STRICT 18-ISOLATED FORMAT PASS PIPELINE GENERATION ENGINE
 # ==============================================================================
-def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
+def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, target_model_string):
     total_chunks = len(chunks)
     progress_bar = st.progress(0.0)
     
@@ -289,7 +208,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
         chunk_context = f"THEME: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"SOURCE CONTENT:\n{chunk_text}"
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
-        # Run 18 separate isolated passes per chunk context zone
         for format_id in range(1, 19):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
@@ -319,7 +237,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 if provider == "OpenAI (ChatGPT)":
                     o_client = OpenAI(api_key=api_key)
                     response = o_client.chat.completions.create(
-                        model="gpt-4o-mini",
+                        model=target_model_string,
                         messages=[{"role": "system", "content": BASE_SYSTEM}, {"role": "user", "content": current_prompt}],
                         temperature=0.4
                     )
@@ -327,7 +245,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 elif provider == "Gemini (Google)":
                     g_client = genai.Client(api_key=api_key)
                     response = g_client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model=target_model_string,
                         contents=current_prompt,
                         config=types.GenerateContentConfig(system_instruction=BASE_SYSTEM, temperature=0.4)
                     )
@@ -335,7 +253,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
                     response = a_client.messages.create(
-                        model=anthropic_model_string,
+                        model=target_model_string,
                         max_tokens=4000,
                         system=BASE_SYSTEM,
                         messages=[{"role": "user", "content": current_prompt}]
@@ -346,7 +264,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 st.error(f"❌ GENERAL ENGINE EXCEPTION at Format {format_id}: {str(general_err)}")
                 break
 
-            # Process the text if applicable, ignore if Systemic Exit Vector keyword triggered
             if len(raw_text.strip()) > 50 and "FORMAT_NOT_APPLICABLE" not in raw_text and "SEGMENT_EXHAUSTED" not in raw_text:
                 raw_items = re.split(r"(?=Question:)", raw_text)
                 
@@ -414,7 +331,6 @@ if uploaded_file:
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
-                # Optimized high-density chunk mapping boundaries
                 chunk_size = 5000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
                 st.info(f"Parsed {len(full_text)} characters into {len(chunks)} high-density segments.")
@@ -426,7 +342,7 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, anthropic_model_choice)
+            process_book_synchronously(book_id, chunks, clean_topic_name, provider, user_api_key, model_choice_string)
             st.success("Compilation processing pass complete!")
             st.rerun()
     else:
@@ -439,7 +355,6 @@ if uploaded_file:
         raw_rows = cur_live.fetchall()
         conn_live.close()
         
-        # Clean sequential numbering pipeline architecture
         numbered_questions_list = []
         for q_idx, row in enumerate(raw_rows, start=1):
             clean_item = row[0]
