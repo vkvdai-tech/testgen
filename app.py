@@ -10,7 +10,7 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. DATABASE CACHE ARCHITECTURE
+# 1. SELF-HEALING SYSTEM DATABASE ARCHITECTURE
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -35,6 +35,7 @@ def init_db():
         )
     """)
     
+    # Self-Healing: Check schema boundaries to prevent field operational exceptions
     try:
         cursor.execute("SELECT final_answer FROM questions LIMIT 1")
     except sqlite3.OperationalError:
@@ -46,21 +47,26 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. CONFIGURATION & SIDEBAR MATRIX
+# 2. CLIENT WORKSPACE WORKSPACE CONFIGURATION
 # ==============================================================================
-st.set_page_config(page_title="UPSC 2018-2026 Pattern Factory", layout="wide")
+st.set_page_config(page_title="UPSC 18-Format Blueprint Engine Pro", layout="wide")
 st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
 
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR SECURITY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR PLATFORM SECURITY
 
 with st.sidebar:
     st.header("🔐 Access Setup")
     user_pass = st.text_input("Enter App Access Password", type="password")
     provider = st.selectbox("Select AI Provider", ["OpenAI (ChatGPT)", "Gemini (Google)", "Anthropic (Claude)"])
     
-    anthropic_model_choice = None
-    if provider == "Anthropic (Claude)":
-        anthropic_model_choice = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
+    # Forward-compatible model router assignments
+    model_choice_string = ""
+    if provider == "OpenAI (ChatGPT)":
+        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-5.4", "gpt-5.5"])
+    elif provider == "Gemini (Google)":
+        model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-3"])
+    elif provider == "Anthropic (Claude)":
+        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
         
     user_api_key = st.text_input(f"Enter {provider} API Key", type="password")
     
@@ -71,40 +77,43 @@ if user_pass != ACCESS_PASSWORD:
 if not user_api_key:
     st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
     st.stop()
-
 # ==============================================================================
-# 3. HIGH-DIFFICULTY 2018-2026 PATTERN-MATCHED FRAMEWORK
+# 3. HIGH-DIFFICULTY 2018-2026 PATTERN-MATCHED SYSTEM PROMPT
 # ==============================================================================
 MASTER_PROMPT = """
-You are an expert Senior UPSC Civil Services Examination Paper Setter matching the exact conceptual trends of the official 2018–2026 GS Paper I booklets. 
-Your absolute mandate is to construct questions matching this strict conceptual difficulty distribution:
-- 60% BRUTAL BOUNCERS (Very Hard): 3rd-order conceptual deductions, multi-layered statutory intersections, or obscure administrative operational exceptions.
-- 30% MEDIUM: Tricky conceptual application questions with high-yield distractors.
-- 10% EASY: Core standard factual baseline validations.
+You are an expert Senior UPSC Civil Services Examination Paper Setter matching the exact conceptual trends, linguistic rigor, and structural layouts of the official 2018–2026 GS Paper I examination booklets. Your sole mandate is to analyze the source text provided and construct questions that match this strict difficulty distribution:
+- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order conceptual deductions, multi-layered statutory or regulatory intersections, or obscure operational exceptions.
+- 30% MEDIUM: Tricky conceptual application questions with highly attractive, recognizable distractors.
+- 10% EASY: Core standard baseline factual validations.
 
-CRITICAL MOCK PAPER BALANCING RULES (2018-2026 INSIGHTS):
-1. For Multi-Statement Countable questions, do NOT always make exactly two statements correct. Systematically vary the logical conditions so that 'Only one', 'Only two', 'All three', and 'None' are evenly balanced as the correct option keys.
-2. For Assertion-Reason layouts, design the statements so that often both statements are true but Statement-II is completely irrelevant to Statement-I, or design it so Statement-I is a common misconception (Incorrect) and Statement-II is valid (Correct).
-3. Do NOT use the informal words 'trap', 'trick', or 'bait' anywhere in the output text. Use formal academic language.
+CRITICAL MOCK PAPER BALANCING RULES:
+1. For Multi-Statement Countable questions, vary the underlying conditions so that 'Only one', 'Only two', 'All three', and 'None' are evenly distributed as correct answer keys across your runs.
+2. For Dual-Statement 'Both/Neither' questions, do not default to positive validation. Systematically make 'Neither 1 nor 2' the correct answer to break standard guess patterns.
+3. For Two-Column and Three-Column Match Matrices, the information must be rendered cleanly in a formatted Markdown Table (| Column 1 | Column 2 |) to simulate official examination layouts.
+4. Language Directive: Do NOT use casual or informal words like 'trap', 'trick', 'bait', or 'catch' anywhere in the output text. Use professional academic terminology.
 
-OUTPUT TEMPLATE (You must match this layout exactly):
-Question: [Insert question statement here]
+⚠️ CRITICAL SYSTEMIC EXIT VECTOR:
+Evaluate the provided source text chunk carefully against the specific format requested. If the source text lacks the logical data required to cleanly build that specific format variant (e.g., trying to generate a spatial directional map question from text that contains no geography, or a chronological timeline from text with no historical milestones), you MUST output exactly the word: FORMAT_NOT_APPLICABLE. Do not invent facts, do not force the layout, and do not provide any explanation if this occurs.
+
+OUTPUT TEMPLATE (You must match this layout exactly if the format is applicable):
+Question: [Insert cleanly constructed question statement here matching the exact requested format pattern]
 (a) [Option A]
 (b) [Option B]
 (c) [Option C]
 (d) [Option D]
 Answer: [Correct letter only, e.g., (c)]
-Explanation: [Provide a crisp 1-2 sentence factual validation mapping back to the source text]
-Analytical Focus: [Provide a detailed 2-3 sentence strategic breakdown explaining the layout's structural nuance, why specific distractors look attractive, and how an aspirant should eliminate options to find the correct choice]
-Topic: [Specific syllabus micro-topic tag]
+Explanation: [Provide a crisp 1-2 sentence factual validation mapping back to the explicit source text. Keep it concise to optimize token footprints.]
+Analytical Focus: [Provide a detailed 2-3 sentence professional breakdown explaining the structural nuance of the layout, why specific distractors look attractive, and the precise elimination logic an aspirant must deploy to isolate the correct option.]
+Topic: [Specific UPSC syllabus micro-topic tag]
 
 Do not output any introductory or concluding conversational padding or markdown commentary.
 """
 
 # ==============================================================================
-# 4. ALGORITHMIC POST-PROCESSING SHUFFLER & BALANCER
+# 4. PROGRAMMATIC OPTION SHUFFLER & RANDOM BALANCER
 # ==============================================================================
 def shuffle_and_balance_options(raw_question_text):
+    # Guard Layer: Do not corrupt fixed options matrices like Assertion-Reasoning structural codes
     if "Statement-I" in raw_question_text and "Statement-II" in raw_question_text:
         ans_match = re.search(r"Answer:\s*\(([a-d])\)", raw_question_text, re.IGNORECASE)
         return raw_question_text, (ans_match.group(1).lower() if ans_match else 'b')
@@ -166,7 +175,7 @@ def shuffle_and_balance_options(raw_question_text):
         return raw_question_text, 'b'
 
 # ==============================================================================
-# 5. STRICT 12-ISOLATED FORMAT PASS PIPELINE GENERATION ENGINE
+# 5. STRICT 18-ISOLATED FORMAT PASS PIPELINE GENERATION ENGINE
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, anthropic_model_string=None):
     total_chunks = len(chunks)
@@ -175,25 +184,32 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions matching the explicit requested format architecture template rule."
 
     FORMAT_BLUEPRINTS = {
-        1: "Format Rule: Generate a unique question in FORMAT 1: DIRECT / STANDALONE question style (Variant 1A, 1B, 1C, or 1D). Ensure options contain realistic half-truths.",
-        2: "Format Rule: Generate a unique question in FORMAT 2: MULTI-STATEMENT style. Use variants 2A or 2B (Which statement is/are correct/incorrect with classic option choices).",
-        3: "Format Rule: Generate a unique question in FORMAT 2C: MULTI-STATEMENT COUNTABLE style matching 2022-2026 trends. Use the exact text layout: 'How many of the statements given above are correct? (a) Only one (b) Only two (c) All three (d) None'. Make sure the correct option distribution varies.",
-        4: "Format Rule: Generate a unique question in FORMAT 3: ASSERTION-REASON causal logic style. Follow this layout structure EXACTLY:\nQuestion: Statement-I: [Factual claim]. Statement-II: [Causal explanation why Statement-I is true]. Which one of the following is correct?\n(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I\n(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I\n(c) Statement-I is correct but Statement-II is incorrect\n(d) Statement-I is incorrect but Statement-II is correct",
-        5: "Format Rule: Generate a unique question in FORMAT 4: TWO-COLUMN MATCH THE FOLLOWING style. Match List-I with List-II using standard option combinations (A-1, B-2, C-3, D-4).",
-        6: "Format Rule: Generate a unique question in FORMAT 5: THREE-COLUMN MATCH THE FOLLOWING style (UPSC 2024-2026 trend). Structure exactly as: Column A (Term) | Column B (Provisions) | Column C (Context). Question: 'Which of the following combinations is correct? (a) A-1-I, B-2-II...'.",
-        7: "Format Rule: Generate a unique question in FORMAT 6: CHRONOLOGICAL SEQUENCE style. Arrange 4 historical developments, legal acts, or procedural steps in their correct sequence.",
-        8: "Format Rule: Generate a unique question in FORMAT 7: APPLIED / CURRENT AFFAIRS LINKED style. Anchor the stem in a real policy development or named judgment from the text material.",
-        9: "Format Rule: Generate a unique question in FORMAT 8: SCENARIO-BASED / SITUATIONAL JUDGMENT style (2026 trend). Place a complex administrative deadlock or executive-legal paradox in the stem and evaluate constitutional validities.",
-        10: "Format Rule: Generate a unique question in FORMAT 9: SPATIAL CONCEPTUAL / REGIONAL BOUNDARY style testing text-based geographic jurisdictions or regional interactions.",
-        11: "Format Rule: Generate a unique question in FORMAT 11: PASSAGE-BASED COMPREHENSION inference style. Provide a dense 3-8 line textual excerpt from the text and ask which inferences (1, 2, 3) logically follow.",
-        12: "Format Rule: Generate a unique question in FORMAT 12: 'WHICH IS LEAST/MOST LIKELY' ANALYTICAL style evaluating relative significance using terms like 'MOST LIKELY consequence' or 'GREATEST IMPACT'."
+        1: "Format Rule: Generate exactly 1 question in FORMAT 1: DEFINITIONAL STANDALONE style tracking an exact operational legal boundary, economic doctrine, or constitutional term.",
+        2: "Format Rule: Generate exactly 1 question in FORMAT 2: NEGATIVE STANDALONE INVERSION style ending in a hard negative indicator ('NOT' / 'EXCEPT').",
+        3: "Format Rule: Generate exactly 1 question in FORMAT 3: SINGLE-SENTENCE PROFILE RECOGNITION style summarizing a specific historical persona or institutional entity.",
+        4: "Format Rule: Generate exactly 1 question in FORMAT 4: DUAL-ENTITY DIRECT COMPARISON style. Options must be locked to: (a) 1 only, (b) 2 only, (c) Both 1 and 2, (d) Neither 1 nor 2. Target final correct answer code to favor choice (d).",
+        5: "Format Rule: Generate exactly 1 question in FORMAT 5: MULTI-STATEMENT POSITIVE COMBO (CLASSIC) style with 3 or 4 statements and overlapping combinations choices.",
+        6: "Format Rule: Generate exactly 1 question in FORMAT 6: MULTI-STATEMENT NEGATIVE COMBO style explicitly targeting INCORRECT / NOT correct statement alignments.",
+        7: "Format Rule: Generate exactly 1 question in FORMAT 7: MODERN COUNTABLE STATEMENT GRID style. Options must be strictly fixed to: (a) Only one, (b) Only two, (c) All three, (d) None.",
+        8: "Format Rule: Generate exactly 1 question in FORMAT 8: MULTI-VARIABLE MASSIVE SELECTION SET style listing an extensive list array of 5 to 7 specific indicators.",
+        9: "Format Rule: Generate exactly 1 question in FORMAT 9: ASSERTION-REASONING CAUSAL LOGIC style with Statement-I and Statement-II configurations.",
+        10: "Format Rule: Generate exactly 1 question in FORMAT 10: TABULAR TWO-COLUMN MATCHING MATRIX style. Force structural components cleanly inside a formatted Markdown table layout.",
+        11: "Format Rule: Generate exactly 1 question in FORMAT 11: TABULAR THREE-COLUMN MATCHING MATRIX style. Construct a complex multi-variable Markdown grid cross-referencing three elements.",
+        12: "Format Rule: Generate exactly 1 question in FORMAT 12: MODERN COUNTABLE ROW MATCHING style combining a two-column Markdown table with countable options choices.",
+        13: "Format Rule: Generate exactly 1 question in FORMAT 13: MODERN COUNTABLE ROW MATCHING INVERSION style searching exclusively for INCORRECTLY matched row entries.",
+        14: "Format Rule: Generate exactly 1 question in FORMAT 14: SPATIAL DIRECTIONAL SEQUENCE style re-arranging geographic properties sequentially from North to South / East to West.",
+        15: "Format Rule: Generate exactly 1 question in FORMAT 15: CHRONOLOGICAL SEQUENCE MATRIX style arranging historical developments using sequential chain arrow options.",
+        16: "Format Rule: Generate exactly 1 question in FORMAT 16: QUANTITATIVE SCALING SEQUENCE style ordering data gradients in a strict increasing or decreasing sequence map.",
+        17: "Format Rule: Generate exactly 1 question in FORMAT 17: CASE-STUDY / ADMINISTRATIVE SCENARIO DILEMMA style assessing executive logjams and functional boundaries.",
+        18: "Format Rule: Generate exactly 1 question in FORMAT 18: TEXTUAL PASSAGE-BASED COMPREHENSION INFERENCE style quoting a dense 3-8 line passage block directly."
     }
 
     for index, chunk_text in enumerate(chunks):
         chunk_context = f"THEME: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"SOURCE CONTENT:\n{chunk_text}"
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
-        for format_id in range(1, 13):
+        # Run 18 separate isolated passes per chunk context zone
+        for format_id in range(1, 19):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("SELECT content FROM questions WHERE book_id = ? ORDER BY id DESC LIMIT 3", (book_id,))
@@ -249,7 +265,8 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 st.error(f"❌ GENERAL ENGINE EXCEPTION at Format {format_id}: {str(general_err)}")
                 break
 
-            if len(raw_text.strip()) > 50 and "SEGMENT_EXHAUSTED" not in raw_text:
+            # Process the text if applicable, ignore if Systemic Exit Vector keyword triggered
+            if len(raw_text.strip()) > 50 and "FORMAT_NOT_APPLICABLE" not in raw_text and "SEGMENT_EXHAUSTED" not in raw_text:
                 raw_items = re.split(r"(?=Question:)", raw_text)
                 
                 conn = sqlite3.connect(DB_FILE)
@@ -263,7 +280,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         )
                 conn.commit()
                 conn.close()
-                time.sleep(0.5)
+                time.sleep(0.4)
         
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -316,6 +333,7 @@ if uploaded_file:
             if not full_text or len(full_text) < 10:
                 chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
             else:
+                # Optimized high-density chunk mapping boundaries
                 chunk_size = 5000
                 chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
                 st.info(f"Parsed {len(full_text)} characters into {len(chunks)} high-density segments.")
@@ -340,6 +358,7 @@ if uploaded_file:
         raw_rows = cur_live.fetchall()
         conn_live.close()
         
+        # Clean sequential numbering pipeline architecture
         numbered_questions_list = []
         for q_idx, row in enumerate(raw_rows, start=1):
             clean_item = row[0]
@@ -387,7 +406,7 @@ if uploaded_file:
             
         st.write("---")
         
-        full_output_bank = f"=== UPSC 12-FORMAT BALANCED POOL FOR TOPIC: {clean_topic_name} ===\n\n{raw_combined_text}"
+        full_output_bank = f"=== UPSC 18-FORMAT BALANCED POOL FOR TOPIC: {clean_topic_name} ===\n\n{raw_combined_text}"
         
         st.download_button(
             label=f"📥 Download Balanced Bank ({total_questions_found} Questions .txt)",
