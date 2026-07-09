@@ -10,7 +10,124 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. SELF-HEALING SYSTEM DATABASE ARCHITECTURE
+# 1. HIGH-DIFFICULTY 2018-2026 PATTERN-MATCHED VISION IAS STYLE PROMPT
+# ==============================================================================
+MASTER_PROMPT = """
+You are an expert Senior UPSC Civil Services Examination Paper Setter matching the exact conceptual trends, linguistic rigor, and structural layouts of the official 2018–2026 GS Paper I examination booklets. Your sole mandate is to analyze the source text provided and construct questions that match this strict difficulty distribution:
+- 60% BRUTAL BOUNCERS (Very Hard): Requires 3rd-order conceptual deductions, multi-layered statutory or regulatory intersections, or obscure operational exceptions.
+- 30% MEDIUM: Tricky conceptual application questions with highly attractive, recognizable distractors.
+- 10% EASY: Core standard baseline factual validations.
+
+STRICT VISION IAS EXPLANATION STYLE MANDATES:
+1. NO CONVERSATIONAL PADDING: You are strictly FORBIDDEN from using meta-phrases such as "The source text states", "According to the provided text", "Analytical Focus", "Factual baseline confirmed", or "Conceptual evaluation metrics active". 
+2. BULLETED FACT-BASED DESIGN: The explanation must be rendered exclusively as a clean series of concise, direct, professional bullet points stating absolute constitutional, historical, or administrative facts. 
+3. EXPLICIT CONCLUSION LINE: The final bullet point of your explanation block MUST end precisely with the exact string pattern: "Hence, option (X) is the correct answer." (where X is the lowercase correct option letter).
+4. NO TEXTBOOK META-REFERENCES: Never reference textbook internal metadata, table numbers, page numbers, or chart markers (e.g., do NOT mention 'Table 2.5'). Test the core underlying data directly.
+5. NO REPETITION MATRIX: Do not repeat the same core topic or factual statement across different format runs within the same text chunk context.
+
+⚠️ CRITICAL SYSTEMIC EXIT VECTOR:
+Evaluate the provided source text chunk carefully against the specific format requested. If the source text lacks the logical data required to cleanly build that specific format variant, you MUST output exactly the word: FORMAT_NOT_APPLICABLE. Do not invent facts, do not force the layout, and do not provide any explanation if this occurs.
+
+OUTPUT TEMPLATE (You must match this layout exactly if the format is applicable):
+Question: [Insert cleanly constructed question statement here ending with proper punctuation closure]
+(a) [Option A]
+(b) [Option B]
+(c) [Option C]
+(d) [Option D]
+Answer: [Correct letter only, e.g., (c)]
+Explanation: 
+• [Direct factual summary line mapping the core entity, act, or mechanism]
+• [Targeted validation line breaking down the specific truth value of the options or statements]
+• [Final concluding line: Hence, option (x) is the correct answer.]
+Topic: [Specific UPSC syllabus micro-topic tag]
+
+Do not output any introductory or concluding markdown commentary.
+
+------------------------------------------------------------------------
+EXPLICIT 18-ARCHITECTURAL FORMAT SPECIFICATION MATRIX:
+------------------------------------------------------------------------
+You must execute the precise format requested below, adhering strictly to its unique structural rules:
+
+[FORMAT 1: DEFINITIONAL STANDALONE]
+- Stem Pattern: "Which one of the following statements best describes the term '[X]'?" or "The concept of '[X]' essentially refers to:"
+
+[FORMAT 2: NEGATIVE STANDALONE INVERSION]
+- Stem Pattern: "Which one of the following statements regarding [X] is NOT correct?" or "Which of the following does NOT fall under the purview of [X]?"
+
+[FORMAT 3: SINGLE-SENTENCE PROFILE RECOGNITION]
+- Stem Pattern: "[Detailed profile context with 3 historical, statutory, or geographic data points]. Who/What among the following is described above?"
+
+[FORMAT 4: DUAL-ENTITY DIRECT COMPARISON]
+- Options locked strictly to: (a) 1 only, (b) 2 only, (c) Both 1 and 2, (d) Neither 1 nor 2.
+- Stem Pattern: "With reference to [Entity X] and [Entity Y], consider the following statements: 1... 2... Which of the statements given above is/are correct?"
+
+[FORMAT 5: MULTI-STATEMENT POSITIVE COMBO (CLASSIC)]
+- Stem Pattern: "Consider the following statements regarding [X]: 1... 2... 3... Which of the statements given above is/are correct?" Options use combinations like '1 and 2 only'.
+
+[FORMAT 6: MULTI-STATEMENT NEGATIVE COMBO]
+- Stem Pattern: "Consider the following statements: 1... 2... 3... Which of the statements given above is/are INCORRECT / NOT correct?"
+
+[FORMAT 7: MODERN COUNTABLE STATEMENT GRID]
+- Layout: 
+Consider the following statements:
+1. [Statement 1]
+2. [Statement 2]
+3. [Statement 3]
+How many of the statements given above are correct?
+(a) Only one (b) Only two (c) All three (d) None
+
+[FORMAT 8: MULTI-VARIABLE MASSIVE SELECTION SET]
+- Stem Pattern: "Regarding [X], consider the following elements: 1... 2... 3... 4... 5... Which of the above are the correct indicators/consequences? (a) 1, 2, 4 and 5 only..."
+
+[FORMAT 9: ASSERTION-REASONING CAUSAL LOGIC]
+- Options Grid must match this exactly:
+(a) Both Statement-I and Statement-II are correct and Statement-II is the correct explanation of Statement-I
+(b) Both Statement-I and Statement-II are correct but Statement-II is NOT the correct explanation of Statement-I
+(c) Statement-I is correct but Statement-II is incorrect
+(d) Statement-I is incorrect but Statement-II is correct
+
+[FORMAT 10: TABULAR TWO-COLUMN MATCHING MATRIX]
+- Layout: Clean Markdown table mapping pairs (e.g., Act ↔ Year). Options follow standard code combinations.
+Match List-I with List-II:
+| List-I ([Category]) | List-II ([Category]) |
+| :--- | :--- |
+| A. [Item 1] | 1. [Match 1] |
+Choose the correct answer using the code given below: (a) A-1, B-2...
+
+[FORMAT 11: TABULAR THREE-COLUMN MATCHING MATRIX]
+- Layout: Clean markdown table cross-referencing three tracks (e.g., Species ↔ Habitat ↔ Status).
+Consider the following table:
+| Column I ([Type]) | Column II ([Type]) | Column III ([Type]) |
+Which of the combinations given above is correct? (a) A-1-I, B-2-II...
+
+[FORMAT 12: MODERN COUNTABLE ROW MATCHING]
+- Layout:
+Consider the following pairs:
+| [Category I] | [Category II] |
+How many of the pairs given above are correctly matched?
+(a) Only one (b) Only two (c) All three (d) None
+
+[FORMAT 13: MODERN COUNTABLE ROW MATCHING INVERSION]
+- Layout Pattern: Identical table to Format 12, but the stem is: "How many of the pairs given above are INCORRECTLY matched? (a) Only one (b) Only two..."
+
+[FORMAT 14: SPATIAL DIRECTIONAL SEQUENCE]
+- Stem Pattern: "Consider the following geographical features: 1... 2... 3... 4... Which one of the following represents the correct sequential sequence from North to South / East to West?"
+
+[FORMAT 15: CHRONOLOGICAL SEQUENCE MATRIX]
+- Stem Pattern: "Consider the following developments: 1... 2... 3... 4... What is the correct chronological order of the above? (a) 1 → 2 → 3 → 4 (b) 2 → 4 → 1 → 3..."
+
+[FORMAT 16: QUANTITATIVE SCALING SEQUENCE]
+- Stem Pattern: "Consider the following states/sectors: 1... 2... 3... 4... Which one of the following represents the correct sequence in a decreasing order of their [Indicator X]?"
+
+[FORMAT 17: CASE-STUDY / ADMINISTRATIVE SCENARIO DILEMMA]
+- Stem Pattern: "[Dilemma description]. In the context of administrative law and the Constitution of India, which one of the following actions is the most appropriate?"
+
+[FORMAT 18: TEXTUAL PASSAGE-BASED COMPREHENSION INFERENCE]
+- Stem Pattern: "Read the following excerpt carefully: '[Text Quote]'. Based on the passage above, which of the following inferences is/are correct?"
+"""
+
+# ==============================================================================
+# 2. DATABASE CACHE STORAGE ARCHITECTURE
 # ==============================================================================
 DB_FILE = "upsc_platform_simple.db"
 
@@ -46,38 +163,7 @@ def init_db():
 init_db()
 
 # ==============================================================================
-# 2. CLIENT WORKSPACE CONFIGURATION (With Cost-Efficient Fast Models)
-# ==============================================================================
-st.set_page_config(page_title="UPSC 18-Format Master Engine v6", layout="wide")
-st.title("🎯 UPSC GS Paper I Pure MCQ Generator")
-
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR YOUR SECURITY
-
-with st.sidebar:
-    st.header("🔐 Access Setup")
-    user_pass = st.text_input("Enter App Access Password", type="password")
-    provider = st.selectbox("Select AI Provider", ["Gemini (Google)", "OpenAI (ChatGPT)", "Anthropic (Claude)"])
-    
-    model_choice_string = ""
-    if provider == "Gemini (Google)":
-        model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
-    elif provider == "OpenAI (ChatGPT)":
-        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5"])
-    elif provider == "Anthropic (Claude)":
-        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
-        
-    user_api_key = st.text_input(f"Enter {provider} API Key", type="password")
-    
-if user_pass != ACCESS_PASSWORD:
-    st.warning("Please provide valid access credentials to unlock the workspace.")
-    st.stop()
-
-if not user_api_key:
-    st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
-    st.stop()
-
-# ==============================================================================
-# 4. DETERMINISTIC ROBUST OPTION SHUFFLER & BALANCER
+# 3. ROBUST INDEX-MATCH OPTION SHUFFLER & BALANCER
 # ==============================================================================
 def shuffle_and_balance_options(raw_question_text):
     if "is NOT" in raw_question_text and "is NOT correct?" not in raw_question_text and "is NOT correct" not in raw_question_text:
@@ -96,7 +182,6 @@ def shuffle_and_balance_options(raw_question_text):
         
         original_correct_letter = ans_match.group(1).lower()
 
-        # Isolate text elements using string index partitioning
         a_idx = raw_question_text.lower().find("(a)")
         b_idx = raw_question_text.lower().find("(b)")
         c_idx = raw_question_text.lower().find("(c)")
@@ -133,14 +218,12 @@ def shuffle_and_balance_options(raw_question_text):
                 new_correct_letter = letter
                 break
 
-        # Slice pure bulleted arrays cleanly
         exp_text = ""
         if exp_idx != -1 and top_idx != -1:
             exp_text = raw_question_text[exp_idx+12:top_idx].strip()
         else:
             exp_text = raw_question_text[ans_idx+9:].strip()
 
-        # Dynamic replacement parameter to append the unified target conclusion string
         exp_text = re.sub(r"Hence, option\s*\([a-d]\)\s*is the correct answer\.", "", exp_text, flags=re.IGNORECASE).strip()
         exp_text = re.sub(r"Hence, option\s*\([a-d]\)\s*is correct\.", "", exp_text, flags=re.IGNORECASE).strip()
         
@@ -170,7 +253,7 @@ def shuffle_and_balance_options(raw_question_text):
         return raw_question_text, 'b'
 
 # ==============================================================================
-# 5. GENERATION ENGINE PIPELINE INTERACTION
+# 4. EXPLICIT 18-ISOLATED ARCHITECTURAL RUN TIMELINE ENGINE
 # ==============================================================================
 def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, api_key, target_model_string):
     total_chunks = len(chunks)
@@ -289,7 +372,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     conn.close()
 
 # ==============================================================================
-# 6. USER INTERFACE INTERACTION PIPELINE
+# 5. FIXED LAYER: SECURE TEXT EXTRACTOR LAYER DECLARATION
 # ==============================================================================
 def extract_robust_pdf_text(uploaded_pdf):
     text = ""
@@ -299,6 +382,37 @@ def extract_robust_pdf_text(uploaded_pdf):
             if page_text:
                 text += page_text + "\n"
     return text.strip()
+
+# ==============================================================================
+# 6. USER DISPLAY MATRIX WORKSPACE INTERFACES
+# ==============================================================================
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR SECURITY
+
+st.sidebar.header("🔐 Workspace Entry Control")
+with st.sidebar:
+    st.header("🔐 Workspace Setup Matrix")
+
+# User setup verification panel inputs
+user_pass = st.text_input("Enter App Access Password", type="password", key="main_pass")
+provider = st.selectbox("Select AI Provider", ["Gemini (Google)", "OpenAI (ChatGPT)", "Anthropic (Claude)"], key="main_prov")
+
+model_choice_string = ""
+if provider == "Gemini (Google)":
+    model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
+elif provider == "OpenAI (ChatGPT)":
+    model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5"])
+elif provider == "Anthropic (Claude)":
+    model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
+    
+user_api_key = st.text_input(f"Enter {provider} API Key", type="password", key="main_key")
+
+if user_pass != ACCESS_PASSWORD:
+    st.warning("Please provide valid access credentials to unlock the workspace.")
+    st.stop()
+
+if not user_api_key:
+    st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
+    st.stop()
 
 uploaded_file = st.file_uploader("Upload Topic / Chapter PDF", type=["pdf"])
 
@@ -361,7 +475,6 @@ if uploaded_file:
         
         st.write(f"📖 **Topic Baseline:** {clean_topic_name} | Status: **{status.upper()}**")
         
-        # UI Metrics Cards Dashboard Display
         st.header("🛡️ Automated Question Bank Quality Core Validation")
         
         col1, col2, col3 = st.columns(3)
