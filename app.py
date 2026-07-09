@@ -336,8 +336,8 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         system=BASE_SYSTEM,
                         messages=[{"role": "user", "content": current_prompt}])
     # Safely iterate through blocks to find the TextBlock and ignore the ThinkingBlock
-    text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
-    raw_text = "".join(text_blocks)
+                        text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
+                        raw_text = "".join(text_blocks)
 
             except Exception as general_err:
                 st.error(f"❌ GENERAL ENGINE EXCEPTION at Format {format_id}: {str(general_err)}")
