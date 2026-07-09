@@ -402,7 +402,7 @@ if provider == "Gemini (Google)":
 elif provider == "OpenAI (ChatGPT)":
     model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5"])
 elif provider == "Anthropic (Claude)":
-    model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8"])
+    model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"])
     
 user_api_key = st.text_input(f"Enter {provider} API Key", type="password", key="main_key")
 
