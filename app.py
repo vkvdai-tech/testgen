@@ -334,8 +334,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         model=target_model_string,
                         max_tokens=4000,
                         system=BASE_SYSTEM,
-                        messages=[{"role": "user", "content": current_prompt}]
-    )
+                        messages=[{"role": "user", "content": current_prompt}])
     # Safely iterate through blocks to find the TextBlock and ignore the ThinkingBlock
     text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
     raw_text = "".join(text_blocks)
