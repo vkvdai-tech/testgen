@@ -334,10 +334,11 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                         model=target_model_string,
                         max_tokens=4000,
                         system=BASE_SYSTEM,
-                        messages=[{"role": "user", "content": current_prompt}])
-    # Safely iterate through blocks to find the TextBlock and ignore the ThinkingBlock
-                        text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
-                        raw_text = "".join(text_blocks)
+                        messages=[{"role": "user", "content": current_prompt}]
+                    )
+                    # Safe reasoning content block loop handler
+                    text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
+                    raw_text = "".join(text_blocks)
 
             except Exception as general_err:
                 st.error(f"❌ GENERAL ENGINE EXCEPTION at Format {format_id}: {str(general_err)}")
@@ -387,25 +388,25 @@ def extract_robust_pdf_text(uploaded_pdf):
 # ==============================================================================
 # 6. USER DISPLAY MATRIX WORKSPACE INTERFACES
 # ==============================================================================
-ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR SECURITY
+ACCESS_PASSWORD = "Arjun_vasu"  # CHANGE THIS PASSWORD FOR PLATFORM SECURITY
 
 st.sidebar.header("🔐 Workspace Entry Control")
 with st.sidebar:
     st.header("🔐 Workspace Setup Matrix")
 
-# User setup verification panel inputs
-user_pass = st.text_input("Enter App Access Password", type="password", key="main_pass")
-provider = st.selectbox("Select AI Provider", ["Gemini (Google)", "OpenAI (ChatGPT)", "Anthropic (Claude)"], key="main_prov")
+    # Dynamic workspace verification fields
+    user_pass = st.text_input("Enter App Access Password", type="password", key="main_pass")
+    provider = st.selectbox("Select AI Provider", ["Gemini (Google)", "OpenAI (ChatGPT)", "Anthropic (Claude)"], key="main_prov")
 
-model_choice_string = ""
-if provider == "Gemini (Google)":
-    model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
-elif provider == "OpenAI (ChatGPT)":
-    model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5"])
-elif provider == "Anthropic (Claude)":
-    model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"])
-    
-user_api_key = st.text_input(f"Enter {provider} API Key", type="password", key="main_key")
+    model_choice_string = ""
+    if provider == "Gemini (Google)":
+        model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
+    elif provider == "OpenAI (ChatGPT)":
+        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5"])
+    elif provider == "Anthropic (Claude)":
+        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"])
+        
+    user_api_key = st.text_input(f"Enter {provider} API Key", type="password", key="main_key")
 
 if user_pass != ACCESS_PASSWORD:
     st.warning("Please provide valid access credentials to unlock the workspace.")
