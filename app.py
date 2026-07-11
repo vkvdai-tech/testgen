@@ -329,13 +329,18 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     )
                     raw_text = response.text
                 elif provider == "Anthropic (Claude)":
-                    a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
-                    response = a_client.messages.create(
-                        model=target_model_string,
-                        max_tokens=4000,
-                        system=BASE_SYSTEM,
-                        messages=[{"role": "user", "content": current_prompt}]
-                    )
+                     a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+    
+    # Pack the system instruction directly into the messaging array to maintain backwards compatibility
+                     packaged_messages = [
+                     {"role": "user", "content": f"{BASE_SYSTEM}\n\n{current_prompt}"}
+    ]
+    
+                     response = a_client.messages.create(
+                     model=target_model_string,
+                     max_tokens=4000,
+                     messages=packaged_messages
+    )
                     # Safe reasoning content block loop handler
                     text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
                     raw_text = "".join(text_blocks)
