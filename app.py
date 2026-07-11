@@ -329,19 +329,19 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                     )
                     raw_text = response.text
                 elif provider == "Anthropic (Claude)":
-                     a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
-    
-    # Pack the system instruction directly into the messaging array to maintain backwards compatibility
-                     packaged_messages = [
-                     {"role": "user", "content": f"{BASE_SYSTEM}\n\n{current_prompt}"}
-    ]
-    
-                     response = a_client.messages.create(
-                     model=target_model_string,
-                     max_tokens=4000,
-                     messages=packaged_messages
-    )
-                    # Safe reasoning content block loop handler
+                    a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+                    
+                    # Pack system routing directly into a backwards-compatible message context array
+                    packaged_messages = [
+                        {"role": "user", "content": f"{BASE_SYSTEM}\n\n{current_prompt}"}
+                    ]
+                    
+                    response = a_client.messages.create(
+                        model=target_model_string,
+                        max_tokens=4000,
+                        messages=packaged_messages
+                    )
+                    # Extended thinking logic content block lookahead collector
                     text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
                     raw_text = "".join(text_blocks)
 
@@ -407,7 +407,7 @@ with st.sidebar:
     if provider == "Gemini (Google)":
         model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
     elif provider == "OpenAI (ChatGPT)":
-        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4-mini", "gpt-5.5","gpt-5.6-luna"])
+        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4", "gpt-5.5", "gpt-5.6-luna"])
     elif provider == "Anthropic (Claude)":
         model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"])
         
