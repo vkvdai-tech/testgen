@@ -407,7 +407,7 @@ with st.sidebar:
     if provider == "Gemini (Google)":
         model_choice_string = st.selectbox("Select Gemini Architecture", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3"])
     elif provider == "OpenAI (ChatGPT)":
-        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4", "gpt-5.5", "gpt-5.6-luna"])
+        model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4", "gpt-5.5", "gpt-5.6 luna"])
     elif provider == "Anthropic (Claude)":
         model_choice_string = st.selectbox("Select Claude Architecture", ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"])
         
