@@ -1,16 +1,3 @@
-The errors visible in image_1ce647.png and image_c14997.png make the exact technical root cause crystal clear:
-
-Plaintext
-Error code: 400 - {"error": {"message": "Unsupported value: 'temperature' does not support 0.4 with this model. Only the default (1) value is supported."}}
-🔍 The Root Cause
-Next-generation frontier reasoning models (like the GPT-5.6 series: Sol, Terra, and Luna as well as newest O-series architectures) utilize fixed internal reasoning loops. Because of this architectural change, the OpenAI API explicitly forbids passing a custom temperature value (like 0.4). If a low temperature is sent, the API rejects the request entirely with a 400 Bad Request error, causing the engine to fail and leave the question bank completely empty (0 questions extracted), as seen in your dashboard.
-
-To fix this, we must configure the code to safely drop the temperature parameter entirely whenever a reasoning model or a next-gen GPT-5.6 architecture is routed through the pipeline.
-
-💻 The Final Production-Ready Code (app.py)
-Here is the fully corrected, highly resilient script file. It handles next-gen reasoning API calls safely, addresses potential naming mismatches for gpt-5.6-luna, preserves the precise multi-block extraction logic for Anthropic, and generates clean, bulleted Vision IAS-style explanations without crashing.
-
-Python
 import streamlit as st
 import time
 import sqlite3
@@ -295,7 +282,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
         18: "Format Rule: Generate exactly 1 question in FORMAT 18: TEXTUAL PASSAGE-BASED COMPREHENSION INFERENCE style quoting a dense 3-8 line passage block directly."
     }
 
-    # Normalize next-gen structural naming patterns seamlessly
     normalized_model = target_model_string.strip().lower().replace(" ", "-")
 
     for index, chunk_text in enumerate(chunks):
@@ -331,7 +317,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 if provider == "OpenAI (ChatGPT)":
                     o_client = OpenAI(api_key=api_key)
                     
-                    # Core Protective Router: Omit temperature entirely for reasoning/luna architectures
+                    # Core Protective Router: Omit temperature parameter entirely for reasoning architectures
                     if "luna" in normalized_model or "sol" in normalized_model or "terra" in normalized_model or normalized_model.startswith("o"):
                         response = o_client.chat.completions.create(
                             model=normalized_model,
