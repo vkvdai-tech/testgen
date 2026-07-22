@@ -10,12 +10,12 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. SENIOR UPSC FACULTY MASTER PROMPT (WITH MICRO-TOPIC HEADERS)
+# 1. SENIOR UPSC FACULTY MASTER PROMPT (DUAL INPUT & DYNAMIC HEADERS)
 # ==============================================================================
 MASTER_PROMPT = """
 Role: Act as a former UPSC Civil Services Examination paper setter, constitutional law professor, senior Indian Polity faculty, and UPSC test-series designer.
 
-Objective: Using the provided source text segment alongside your extensive internal knowledge base on Indian Polity, Constitution, Administrative Law, and landmark judicial precedents, create an authentic, high-yield UPSC CSE Prelims question bank.
+Objective: Using the provided input source (either uploaded text or pasted micro-topic outline) alongside your extensive internal knowledge base on Indian Polity, Constitution, Administrative Law, and landmark judicial precedents, create an authentic, high-yield UPSC CSE Prelims question bank.
 
 MICRO-TOPIC CLASSIFICATION MANDATE:
 - Every question MUST begin with a clear, numbered Micro-Topic header formatted as:
@@ -23,8 +23,8 @@ MICRO-TOPIC CLASSIFICATION MANDATE:
   (Example: MICRO 11.2: President of India – Constitutional Position)
 
 KNOWLEDGE BASE & SOURCE INTEGRATION RULE:
-- Primary Source Anchor: Use the provided text chunk to identify core micro-topics, statutory references, and administrative mechanisms.
-- World Knowledge Authorization: Do NOT limit yourself exclusively to the text provided if the text is narrow. Draw upon your vast internal database of official UPSC Civil Services standards (2018–2026 trends, relevant constitutional Articles, landmark Supreme Court rulings, and statutory amendments) to construct dense, high-yield questions with realistic distractors.
+- Primary Source Anchor: Use the provided text or micro-topics to identify core themes, statutory references, and administrative mechanisms.
+- World Knowledge Authorization: Do NOT limit yourself exclusively to short input snippets. Draw upon your vast internal database of official UPSC Civil Services standards (2018–2026 trends, relevant constitutional Articles, landmark Supreme Court rulings, and statutory amendments) to construct dense, high-yield questions with realistic distractors.
 
 QUESTION DESIGN PRINCIPLES:
 1. Template rotation: Rotate across all authentic UPSC templates based on what fits the topic's structure (two-statement, three-statement, four/five-statement, single-best-answer, Assertion-Reasoning, Statement-I/Statement-II, pairs-matching, List-I/List-II, NOT-matched, sequence-ordering, Roman-numeral coded). Never repeat the same template back-to-back.
@@ -134,7 +134,7 @@ def shuffle_and_balance_options(raw_question_text):
         if not (a_idx < b_idx < c_idx < d_idx < ans_idx):
             return raw_question_text, original_correct_letter
 
-        # Extract Micro-topic Header + Question Header
+        # Extract Header block including Micro-topic and Question Type
         q_text = raw_question_text[:a_idx].strip()
         q_text = re.sub(r"^Question:\s*", "", q_text, flags=re.IGNORECASE)
 
@@ -238,7 +238,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     normalized_model = target_model_string.strip().lower().replace(" ", "-")
 
     for index, chunk_text in enumerate(chunks):
-        chunk_context = f"THEME / MICRO-TOPICS: {fallback_topic_name}" if len(chunk_text.strip()) < 50 else f"PRIMARY SOURCE TEXT CONTENT:\n{chunk_text}"
+        chunk_context = f"THEME / MICRO-TOPICS:\n{chunk_text}"
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
 
         for format_id in range(1, 19):
@@ -380,14 +380,42 @@ if not user_api_key:
     st.info(f"Please provide your {provider} API key to unlock the engine pipeline.")
     st.stop()
 
-uploaded_file = st.file_uploader("Upload Topic / Chapter PDF", type=["pdf"])
+# --- DUAL INPUT MODE SELECTION ---
+st.header("📚 UPSC Question Bank Input Selection")
+input_mode = st.radio(
+    "Choose how you want to feed syllabus topics into the engine:",
+    ["Option A: Upload Topic PDF", "Option B: Type / Paste Micro-Topics Directly"],
+    horizontal=True
+)
 
-if uploaded_file:
-    clean_topic_name = re.sub(r'[-_]', ' ', uploaded_file.name.replace('.pdf', '')).title()
-    
+full_input_text = ""
+clean_topic_name = ""
+reference_filename = ""
+
+if input_mode == "Option A: Upload Topic PDF":
+    uploaded_file = st.file_uploader("Upload Topic / Chapter PDF", type=["pdf"])
+    if uploaded_file:
+        reference_filename = uploaded_file.name
+        clean_topic_name = re.sub(r'[-_]', ' ', uploaded_file.name.replace('.pdf', '')).title()
+        with st.spinner("Extracting text layers from PDF..."):
+            full_input_text = extract_robust_pdf_text(uploaded_file)
+
+else:
+    typed_topic = st.text_input("Enter General Topic Title (e.g., President of India)", value="President of India")
+    typed_syllabus = st.text_area(
+        "Paste Syllabus Micro-Topics Outline Here:", 
+        height=250,
+        placeholder="MICRO 11.2: President of India – Constitutional Position\n1. Constitutional Position\n2. Constitutional Head\n..."
+    )
+    if typed_syllabus.strip():
+        reference_filename = f"manual_{typed_topic.lower().replace(' ', '_')}.txt"
+        clean_topic_name = typed_topic.title()
+        full_input_text = typed_syllabus.strip()
+
+if full_input_text and reference_filename:
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, processed_segments, total_segments, status FROM books WHERE filename = ?", (uploaded_file.name,))
+    cursor.execute("SELECT id, processed_segments, total_segments, status FROM books WHERE filename = ?", (reference_filename,))
     book_record = cursor.fetchone()
     conn.close()
 
@@ -400,19 +428,13 @@ if uploaded_file:
             conn.commit()
             conn.close()
             
-            with st.spinner("Extracting text layers..."):
-                full_text = extract_robust_pdf_text(uploaded_file)
-            
-            if not full_text or len(full_text) < 10:
-                chunks = ["OCR_FALLBACK_TRIGGER_EMPTY_TEXT_LAYER"]
-            else:
-                chunk_size = 5000
-                chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
-                st.info(f"Parsed {len(full_text)} characters into {len(chunks)} high-density segments.")
+            chunk_size = 5000
+            chunks = [full_input_text[i:i+chunk_size] for i in range(0, len(full_input_text), chunk_size)]
+            st.info(f"Loaded content into {len(chunks)} high-density context segments.")
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO books (filename, total_segments, status) VALUES (?, ?, 'pending')", (uploaded_file.name, len(chunks)))
+            cursor.execute("INSERT INTO books (filename, total_segments, status) VALUES (?, ?, 'pending')", (reference_filename, len(chunks)))
             book_id = cursor.lastrowid
             conn.commit()
             conn.close()
@@ -433,8 +455,18 @@ if uploaded_file:
         numbered_questions_list = []
         for q_idx, row in enumerate(raw_rows, start=1):
             clean_item = row[0]
-            # Formats Q1., Q2., etc. cleanly right after the MICRO header line
-            clean_item = re.sub(r"(MICRO\s*[\d\.]+:.*?\n)(?:Question:\s*)?", r"\1Q " + str(q_idx) + ". ", clean_item, flags=re.IGNORECASE)
+            
+            # Formatting Q 1., Q 2., Q 3. explicitly right after the MICRO header or at the start
+            if "MICRO" in clean_item:
+                clean_item = re.sub(
+                    r"(MICRO\s*[\d\.]+:.*?\n)(?:Question Type:.*?\n)?(?:Question:\s*)?", 
+                    r"\1Q " + str(q_idx) + ". ", 
+                    clean_item, 
+                    flags=re.IGNORECASE
+                )
+            else:
+                clean_item = re.sub(r"^(?:Question:\s*)?", f"Q {q_idx}. ", clean_item, flags=re.IGNORECASE)
+                
             numbered_questions_list.append(clean_item)
             
         raw_combined_text = "\n\n".join(numbered_questions_list) if numbered_questions_list else ""
@@ -470,7 +502,7 @@ if uploaded_file:
             
         with col3:
             st.subheader("🔍 Integrity Verification Check Flags")
-            st.write("✅ **Exact Duplicate Questions:** 0 detected")
+            st.write("✅ **Sequential Numbering:** Active (Q 1, Q 2...)")
             st.write("✅ **UPSC Stem Phrasing:** 100% Validated")
             st.write("✅ **Micro-Topic Classification:** Enforced Across All Items")
             
@@ -481,7 +513,7 @@ if uploaded_file:
         st.download_button(
             label=f"📥 Download Categorized Question Bank ({total_questions_found} Questions .txt)",
             data=full_output_bank,
-            file_name=f"UPSC_Categorized_Master_{uploaded_file.name.replace('.pdf', '')}.txt",
+            file_name=f"UPSC_Categorized_Master_{clean_topic_name.lower().replace(' ', '_')}.txt",
             mime="text/plain",
             disabled=(total_questions_found == 0)
         )
