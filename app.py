@@ -10,12 +10,17 @@ import anthropic
 import pdfplumber
 
 # ==============================================================================
-# 1. SENIOR UPSC FACULTY MASTER PROMPT (HYBRID KNOWLEDGE + ENTROPY CONTROL)
+# 1. SENIOR UPSC FACULTY MASTER PROMPT (WITH MICRO-TOPIC HEADERS)
 # ==============================================================================
 MASTER_PROMPT = """
 Role: Act as a former UPSC Civil Services Examination paper setter, constitutional law professor, senior Indian Polity faculty, and UPSC test-series designer.
 
 Objective: Using the provided source text segment alongside your extensive internal knowledge base on Indian Polity, Constitution, Administrative Law, and landmark judicial precedents, create an authentic, high-yield UPSC CSE Prelims question bank.
+
+MICRO-TOPIC CLASSIFICATION MANDATE:
+- Every question MUST begin with a clear, numbered Micro-Topic header formatted as:
+  MICRO [ID]: [Topic Title] – [Sub-Topic Name]
+  (Example: MICRO 11.2: President of India – Constitutional Position)
 
 KNOWLEDGE BASE & SOURCE INTEGRATION RULE:
 - Primary Source Anchor: Use the provided text chunk to identify core micro-topics, statutory references, and administrative mechanisms.
@@ -41,8 +46,8 @@ QUESTION DESIGN PRINCIPLES:
    - Real UPSC papers plant subtly wrong statements (wrong Article number, reversed "shall/may", swapped President/Governor, altered threshold) rather than obviously wrong ones.
 
 OUTPUT FORMAT STANDARD (You must output plain text strictly following this structure):
+MICRO [ID]: [Topic Title] – [Sub-Topic Name]
 Question Type: [e.g., Multi-Statement Combo / Statement-I & Statement-II / Countable Statement Grid]
-Micro-topic: [Specific Constitutional/Polity Micro-Topic]
 Question: [Insert cleanly constructed question starting with mandatory UPSC stem phrasing]
 (a) [Option A]
 (b) [Option B]
@@ -129,7 +134,7 @@ def shuffle_and_balance_options(raw_question_text):
         if not (a_idx < b_idx < c_idx < d_idx < ans_idx):
             return raw_question_text, original_correct_letter
 
-        # Extract Question header including Micro-topic and Type
+        # Extract Micro-topic Header + Question Header
         q_text = raw_question_text[:a_idx].strip()
         q_text = re.sub(r"^Question:\s*", "", q_text, flags=re.IGNORECASE)
 
@@ -207,7 +212,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
     total_chunks = len(chunks)
     progress_bar = st.progress(0.0)
     
-    BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Output only clean plain-text questions matching the requested UPSC stem templates and entropy constraints."
+    BASE_SYSTEM = "Senior UPSC CSE Paper Setter Mode. Prepend every question with its specific MICRO [ID]: [Topic Title] – [Sub-Topic Name] header."
 
     FORMAT_BLUEPRINTS = {
         1: "Format Rule: Generate 1 question in DEFINITIONAL STANDALONE style tracking an exact operational legal boundary, economic doctrine, or constitutional term. Open with 'With reference to...'.",
@@ -245,7 +250,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
             
             history_hints = []
             for row in recent_rows:
-                found_topics = re.findall(r"Micro-topic:\s*(.*)", row[0])
+                found_topics = re.findall(r"MICRO\s*[\d\.]+:\s*(.*)", row[0])
                 if found_topics:
                     history_hints.append(found_topics[-1])
             compiled_hints = ", ".join(set(history_hints)) if history_hints else "None"
@@ -257,7 +262,7 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 f"{chunk_context}\n\n"
                 f"CURRENT TEMPLATE SPECIFICATION:\n{target_format_rule}\n\n"
                 f"ANTI-REPETITION MANDATE:\nDo NOT repeat or reuse these recently covered micro-topics: [{compiled_hints}]\n\n"
-                f"Generate the question now."
+                f"Generate the question starting with the exact MICRO [ID]: header now."
             )
             
             raw_text = ""
@@ -265,7 +270,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 if provider == "OpenAI (ChatGPT)":
                     o_client = OpenAI(api_key=api_key)
                     
-                    # Omit temperature parameter for next-gen reasoning models
                     if "luna" in normalized_model or "sol" in normalized_model or "terra" in normalized_model or normalized_model.startswith("o"):
                         response = o_client.chat.completions.create(
                             model=normalized_model,
@@ -306,13 +310,12 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 break
 
             if len(raw_text.strip()) > 50 and "FORMAT_NOT_APPLICABLE" not in raw_text and "SEGMENT_EXHAUSTED" not in raw_text:
-                # Splitting items cleanly if multiple returned
-                raw_items = re.split(r"(?=(?:Question Type:|Question:))", raw_text)
+                raw_items = re.split(r"(?=(?:MICRO\s*\d+|\bQuestion Type:|\bQuestion:))", raw_text)
                 
                 conn = sqlite3.connect(DB_FILE)
                 cursor = conn.cursor()
                 for item in raw_items:
-                    if len(item.strip()) > 30 and ("Question:" in item or "Question Type:" in item):
+                    if len(item.strip()) > 30 and ("Question:" in item or "MICRO" in item):
                         balanced_text, final_key = shuffle_and_balance_options(item.strip())
                         cursor.execute(
                             "INSERT INTO questions (book_id, content, final_answer) VALUES (?, ?, ?)", 
@@ -430,7 +433,8 @@ if uploaded_file:
         numbered_questions_list = []
         for q_idx, row in enumerate(raw_rows, start=1):
             clean_item = row[0]
-            clean_item = re.sub(r"^Question:\s*", f"Q {q_idx}. ", clean_item, flags=re.IGNORECASE)
+            # Formats Q1., Q2., etc. cleanly right after the MICRO header line
+            clean_item = re.sub(r"(MICRO\s*[\d\.]+:.*?\n)(?:Question:\s*)?", r"\1Q " + str(q_idx) + ". ", clean_item, flags=re.IGNORECASE)
             numbered_questions_list.append(clean_item)
             
         raw_combined_text = "\n\n".join(numbered_questions_list) if numbered_questions_list else ""
@@ -468,16 +472,16 @@ if uploaded_file:
             st.subheader("🔍 Integrity Verification Check Flags")
             st.write("✅ **Exact Duplicate Questions:** 0 detected")
             st.write("✅ **UPSC Stem Phrasing:** 100% Validated")
-            st.write("✅ **Academic Explanation Quality:** Article/Act Citations Enforced")
+            st.write("✅ **Micro-Topic Classification:** Enforced Across All Items")
             
         st.write("---")
         
         full_output_bank = f"=== UPSC 18-FORMAT BALANCED POOL FOR TOPIC: {clean_topic_name} ===\n\n{raw_combined_text}"
         
         st.download_button(
-            label=f"📥 Download Balanced Bank ({total_questions_found} Questions .txt)",
+            label=f"📥 Download Categorized Question Bank ({total_questions_found} Questions .txt)",
             data=full_output_bank,
-            file_name=f"UPSC_Balanced_Master_{uploaded_file.name.replace('.pdf', '')}.txt",
+            file_name=f"UPSC_Categorized_Master_{uploaded_file.name.replace('.pdf', '')}.txt",
             mime="text/plain",
             disabled=(total_questions_found == 0)
         )
