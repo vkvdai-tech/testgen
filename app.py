@@ -257,13 +257,6 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
 
     normalized_model = target_model_string.strip().lower().replace(" ", "-")
 
-    # Mapping Claude display options to official API identifiers
-    claude_model_map = {
-        "claude-sonnet-5": "claude-3-5-sonnet-20240620",
-        "claude-opus-4-8": "claude-3-opus-20240229",
-        "claude-fable-5": "claude-3-haiku-20240307"
-    }
-
     for index, chunk_text in enumerate(chunks):
         chunk_context = f"THEME / MICRO-TOPICS:\n{chunk_text}"
         st.write(f"📖 Processing Context Block {index+1} of {total_chunks}...")
@@ -323,27 +316,26 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
                     
-                    # Resolve to official Anthropic model string
-                    claude_target = claude_model_map.get(target_model_string, target_model_string)
-                    if "claude" not in claude_target:
-                        claude_target = "claude-3-5-sonnet-20240620"
+                    # Robust Anthropic model selector with fallbacks
+                    anthropic_model = "claude-3-5-sonnet-20240620"
+                    if "opus" in normalized_model:
+                        anthropic_model = "claude-3-opus-20240229"
+                    elif "fable" in normalized_model or "haiku" in normalized_model:
+                        anthropic_model = "claude-3-haiku-20240307"
 
-                    packaged_messages = [
-                        {"role": "user", "content": current_prompt}
-                    ]
-                    
                     response = a_client.messages.create(
-                        model=claude_target,
-                        system=BASE_SYSTEM,
+                        model=anthropic_model,
                         max_tokens=3000,
-                        messages=packaged_messages
+                        messages=[
+                            {"role": "user", "content": f"{BASE_SYSTEM}\n\n{current_prompt}"}
+                        ]
                     )
                     text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
                     raw_text = "".join(text_blocks)
 
             except Exception as general_err:
                 st.error(f"❌ ENGINE EXCEPTION at Format {format_id} ({provider}): {str(general_err)}")
-                break
+                continue
 
             if len(raw_text.strip()) > 50 and "FORMAT_NOT_APPLICABLE" not in raw_text and "SEGMENT_EXHAUSTED" not in raw_text:
                 raw_items = re.split(r"(?=(?:MICRO\s*\d+|\bQuestion Type:|\bQuestion:))", raw_text)
@@ -407,7 +399,7 @@ with st.sidebar:
     elif provider == "OpenAI (ChatGPT)":
         model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4", "gpt-5.5", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra"])
     elif provider == "Anthropic (Claude)":
-        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-sonnet-5", "claude-opus-4-8", "claude-fable-5"])
+        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-3-5-sonnet", "claude-3-opus", "claude-3-haiku"])
         
     user_api_key = st.text_input(f"Enter {provider} API Key", type="password", key="main_key")
 
