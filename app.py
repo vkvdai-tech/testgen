@@ -316,18 +316,12 @@ def process_book_synchronously(book_id, chunks, fallback_topic_name, provider, a
                 elif provider == "Anthropic (Claude)":
                     a_client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
                     
-                    # Robust Anthropic model selector with fallbacks
-                    anthropic_model = "claude-3-5-sonnet-20240620"
-                    if "opus" in normalized_model:
-                        anthropic_model = "claude-3-opus-20240229"
-                    elif "fable" in normalized_model or "haiku" in normalized_model:
-                        anthropic_model = "claude-3-haiku-20240307"
-
                     response = a_client.messages.create(
-                        model=anthropic_model,
-                        max_tokens=3000,
+                        model=normalized_model,
+                        max_tokens=4000,
+                        system=BASE_SYSTEM,
                         messages=[
-                            {"role": "user", "content": f"{BASE_SYSTEM}\n\n{current_prompt}"}
+                            {"role": "user", "content": current_prompt}
                         ]
                     )
                     text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
@@ -399,7 +393,7 @@ with st.sidebar:
     elif provider == "OpenAI (ChatGPT)":
         model_choice_string = st.selectbox("Select OpenAI Architecture", ["gpt-4o-mini", "gpt-4o", "gpt-5.4", "gpt-5.5", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra"])
     elif provider == "Anthropic (Claude)":
-        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-3-5-sonnet", "claude-3-opus", "claude-3-haiku"])
+        model_choice_string = st.selectbox("Select Claude Architecture", ["claude-opus-4-8", "claude-sonnet-5", "claude-fable-5"])
         
     user_api_key = st.text_input(f"Enter {provider} API Key", type="password", key="main_key")
 
